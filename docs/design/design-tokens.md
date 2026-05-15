@@ -9,7 +9,7 @@
 - **fileKey**: `sxsrrNcNXiJno86lqrWSlQ`
 - **메인 프레임 nodeId**: `18:8`
 - **프레임 크기**: 1280 × 1167 (이름: "MacBook Air - 2")
-- **참고 스크린샷**: `figma-frame-18-8.png` (이 폴더)
+- **참고 스크린샷**: Figma URL을 직접 열거나, MCP `get_screenshot` 으로 재생성. (이 환경의 네트워크 allowlist가 figma.com 직접 다운로드를 차단하므로 PNG 사본은 저장하지 않음)
 
 ---
 

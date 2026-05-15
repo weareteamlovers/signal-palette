@@ -101,7 +101,6 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - **Figma file**: https://www.figma.com/design/sxsrrNcNXiJno86lqrWSlQ/Signal-Palette?node-id=18-8
 - **fileKey**: `sxsrrNcNXiJno86lqrWSlQ`
 - **메인 프레임 nodeId**: `18:8` (1280 × 1167, "MacBook Air - 2")
-- **참고 스크린샷**: `docs/design/figma-frame-18-8.png`
 - **모든 픽셀 수치 기록**: `docs/design/design-tokens.md` 와 `src/lib/design-tokens.ts`
 
 > 디자인 작업 시 **임의의 수치를 추가하지 말 것**. 새로운 수치가 필요하면 반드시
