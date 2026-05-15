@@ -1,0 +1,32 @@
+.main {
+  min-height: 100vh;
+  background: var(--bg-page);
+  display: flex;
+  justify-content: center;
+}
+
+/* Absolute-positioned frame matching Figma (1280 × 1167).
+   We center it horizontally and let it scroll vertically if the viewport is short. */
+.frame {
+  position: relative;
+  background: var(--bg-page);
+}
+
+.central {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.footer {
+  position: absolute;
+  margin: 0;
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 16px;
+  color: var(--text-primary);
+  white-space: nowrap;
+}

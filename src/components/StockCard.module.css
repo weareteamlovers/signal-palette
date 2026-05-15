@@ -1,0 +1,35 @@
+.card {
+  position: relative;
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  /* Card height 160. Header sits at top (Figma y=162-192 inside card y=147-307),
+     grid sits at y=233-285 inside card. We use flex with measured spacing. */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* From Figma: text top y=162 inside card top y=147 → 15px from card top */
+  padding-top: 15px;
+}
+
+.header {
+  display: flex;
+  /* Top-aligned: stock name (h=19) and comp box (h=30 or 19) share top edge */
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.name {
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 19px; /* Figma reports text height 19 for 16px font */
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.gridWrap {
+  /* Grid row 1 starts at y=233 inside card y=147 → 86px from card top.
+     Header text top is at 15px, header height up to 45px (with 30 comp box).
+     So gap from header bottom (45) to grid top (86) = 41px. */
+  margin-top: 41px;
+}

@@ -1,0 +1,55 @@
+/* Design tokens — see src/lib/design-tokens.ts for the source-of-truth values
+   that were extracted directly from the Figma file. Keep them in sync. */
+
+:root {
+  --bg-page: #282b32;
+  --bg-card: #31343f;
+  --bg-gradient-start: rgb(40, 43, 50);
+  --bg-gradient-mid: rgb(22, 25, 33);
+
+  /* Signal palette (MVP) */
+  --signal-positive-strong: #22c77f;
+  --signal-positive-mid: #5dd9a0;
+  --signal-positive-mild: #9fe8c5;
+  --signal-neutral: #f5c84c;
+  --signal-negative-strong: #f0506e;
+  --signal-negative-mid: #f47c95;
+  --signal-negative-mild: #f8a8b8;
+  --signal-empty: rgba(255, 255, 255, 0.06);
+
+  /* Change button */
+  --btn-bg-primary: #ffffff;
+  --btn-border-primary: #dddddd;
+  --btn-bg-secondary: #efefef;
+  --btn-border-secondary: #c2c2c2;
+  --btn-text: #000000;
+
+  --text-primary: #ffffff;
+
+  /* Radii */
+  --radius-card: 7px;
+  --radius-small-box: 3px;
+
+  /* Font stack */
+  --font-base: "Roboto", "Pretendard", "Noto Sans KR", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-family: var(--font-base);
+  font-feature-settings: "kern", "liga";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+  font-family: inherit;
+}

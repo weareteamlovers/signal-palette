@@ -1,0 +1,27 @@
+.box {
+  display: block;
+  border-radius: 0;
+}
+
+.rounded {
+  border-radius: var(--radius-small-box);
+}
+
+.empty {
+  background: var(--signal-empty);
+}
+
+/* Step 1 uses the "mid" shade for everything; intensity classes are wired so
+   Step 3 can swap to strong/mild without further markup changes. */
+
+.positive.strong { background: var(--signal-positive-strong); }
+.positive.mid    { background: var(--signal-positive-mid); }
+.positive.mild   { background: var(--signal-positive-mild); }
+
+.neutral.strong,
+.neutral.mid,
+.neutral.mild { background: var(--signal-neutral); }
+
+.negative.strong { background: var(--signal-negative-strong); }
+.negative.mid    { background: var(--signal-negative-mid); }
+.negative.mild   { background: var(--signal-negative-mild); }

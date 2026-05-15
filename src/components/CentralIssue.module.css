@@ -1,0 +1,21 @@
+.row {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
+}
+
+.text {
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: 24px;
+  line-height: 28px; /* Figma reports text height 28 for 24px font */
+  color: var(--text-primary);
+}
+
+.boxSlot {
+  /* Center the 24×24 signal box vertically with the 28px line of text */
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+}
