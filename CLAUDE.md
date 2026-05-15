@@ -171,5 +171,5 @@ npm run dev
 1. 먼저 이 CLAUDE.md를 끝까지 읽기.
 2. `docs/design/design-tokens.md` 로 디자인 수치 확인.
 3. 현재 진행 중인 step ("Status by step" 참고) 이어 작업.
-4. **모르는 디자인 수치는 Figma MCP로 다시 조회** — 절대 추측 금지.
+4. **모르는 디자인 수치는 Figma MCP로 다시 조회하거나 사용자에게 질문** — 절대 추측 금지.
 5. 작업 후 이 파일의 "Status by step" 또는 "Decisions log" 갱신, 새로 추가된 디자인 수치는 `docs/design/design-tokens.md` 에도 추가.
