@@ -16,6 +16,9 @@
   /* Top-aligned: stock name (h=19) and comp box (h=30 or 19) share top edge */
   align-items: flex-start;
   justify-content: center;
+  /* Fixed at the largest comp box size (30 = current variant) so the color-box
+     grid below starts at the same y (86px from card top) for both variants. */
+  height: 30px;
 }
 
 .name {
