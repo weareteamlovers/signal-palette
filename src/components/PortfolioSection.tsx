@@ -1,9 +1,7 @@
 import {
   CARD,
   CURRENT_HEADER,
-  FRAME,
   PORTFOLIO_COMP_BOX,
-  SECTIONS,
   SPARE_HEADER,
 } from "@/lib/design-tokens";
 import type { Portfolio } from "@/types";
@@ -20,7 +18,6 @@ export function PortfolioSection({ portfolio }: Props) {
   const isCurrent = portfolio.variant === "current";
   const header = isCurrent ? CURRENT_HEADER : SPARE_HEADER;
   const compSize = isCurrent ? PORTFOLIO_COMP_BOX.current : PORTFOLIO_COMP_BOX.spare;
-  const section = isCurrent ? SECTIONS.current : SECTIONS.spare;
 
   // Compute card grid positions (relative to the frame, absolute-positioned).
   const cardXs = Array.from({ length: CARD.cols }, (_, i) =>
@@ -31,19 +28,6 @@ export function PortfolioSection({ portfolio }: Props) {
 
   return (
     <>
-      {/* Section gradient background — full-bleed horizontally on viewports wider
-          than the 1280 frame, while every other element keeps its Figma-exact size
-          and position. Vertical position/height is unchanged. */}
-      <div
-        className={styles.bg}
-        style={{
-          top: section.y,
-          height: section.height,
-          width: `max(100vw, ${FRAME.width}px)`,
-          left: `calc((${FRAME.width}px - max(100vw, ${FRAME.width}px)) / 2)`,
-        }}
-      />
-
       {/* Header: title + portfolio comp box + change button */}
       <p
         className={styles.title}

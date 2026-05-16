@@ -3,13 +3,32 @@
   background: var(--bg-page);
   display: flex;
   justify-content: center;
+  position: relative;
+}
+
+/* Section gradient bands — anchored to <main> so they span the actual content
+   width (scrollbar excluded) instead of 100vw, which previously caused a tiny
+   horizontal overflow on displays wider than the 1280 frame.
+   Vertical position/height comes from SECTIONS.{current,spare} per Figma. */
+.sectionBg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: linear-gradient(
+    180deg,
+    var(--bg-gradient-start) 0%,
+    var(--bg-gradient-mid) 5%,
+    var(--bg-gradient-mid) 95%,
+    var(--bg-gradient-start) 100%
+  );
 }
 
 /* Absolute-positioned frame matching Figma (1280 × 1167).
-   We center it horizontally and let it scroll vertically if the viewport is short. */
+   We center it horizontally and let it scroll vertically if the viewport is short.
+   No background here — <main> already paints the page background, and a frame
+   background would cover the full-bleed gradient bands that sit on <main>. */
 .frame {
   position: relative;
-  background: var(--bg-page);
 }
 
 .central {

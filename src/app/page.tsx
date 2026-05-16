@@ -1,7 +1,7 @@
 import { CentralIssue } from "@/components/CentralIssue";
 import { PortfolioSection } from "@/components/PortfolioSection";
 import { DEFAULT_PORTFOLIOS } from "@/data/default-portfolio";
-import { FOOTER, FRAME } from "@/lib/design-tokens";
+import { FOOTER, FRAME, SECTIONS } from "@/lib/design-tokens";
 import styles from "./page.module.css";
 
 export default function Page() {
@@ -13,6 +13,17 @@ export default function Page() {
 
   return (
     <main className={styles.main}>
+      {/* Full-bleed gradient bands sit on <main> so they follow the content width
+          (no horizontal scrollbar). Y/height come from the Figma spec. */}
+      <div
+        className={styles.sectionBg}
+        style={{ top: SECTIONS.current.y, height: SECTIONS.current.height }}
+      />
+      <div
+        className={styles.sectionBg}
+        style={{ top: SECTIONS.spare.y, height: SECTIONS.spare.height }}
+      />
+
       <div className={styles.frame} style={{ width: FRAME.width, height: FRAME.height }}>
         <PortfolioSection portfolio={current} />
         <PortfolioSection portfolio={spare} />
