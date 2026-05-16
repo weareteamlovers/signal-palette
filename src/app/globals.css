@@ -30,8 +30,14 @@
   --radius-card: 7px;
   --radius-small-box: 3px;
 
-  /* Font stack */
-  --font-base: "Roboto", "Pretendard", "Noto Sans KR", sans-serif;
+  /* Font stack — fallback order per spec: Roboto → Pretendard → Noto Sans KR.
+     Roboto and Noto Sans KR are loaded via next/font (self-hosted with hashed
+     family names), so we reference them through the CSS variables exposed by
+     next/font. Pretendard is loaded via CDN as 'Pretendard Variable'.
+     Plain string names ('Pretendard', 'Noto Sans KR') are kept as a safety net
+     for users who have the fonts installed locally. */
+  --font-base: var(--font-roboto), "Pretendard Variable", "Pretendard",
+    var(--font-noto-sans-kr), "Noto Sans KR", sans-serif;
 }
 
 * {
