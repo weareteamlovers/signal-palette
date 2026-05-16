@@ -1,6 +1,7 @@
 import {
   CARD,
   CURRENT_HEADER,
+  FRAME,
   PORTFOLIO_COMP_BOX,
   SECTIONS,
   SPARE_HEADER,
@@ -30,14 +31,16 @@ export function PortfolioSection({ portfolio }: Props) {
 
   return (
     <>
-      {/* Section gradient background */}
+      {/* Section gradient background — full-bleed horizontally on viewports wider
+          than the 1280 frame, while every other element keeps its Figma-exact size
+          and position. Vertical position/height is unchanged. */}
       <div
         className={styles.bg}
         style={{
-          left: section.x,
           top: section.y,
-          width: section.width,
           height: section.height,
+          width: `max(100vw, ${FRAME.width}px)`,
+          left: `calc((${FRAME.width}px - max(100vw, ${FRAME.width}px)) / 2)`,
         }}
       />
 
