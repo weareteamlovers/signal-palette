@@ -1,4 +1,7 @@
-import type { Signal } from "@/types";
+"use client";
+
+import type { Issue, Signal } from "@/types";
+import { useActiveIssue } from "./ActiveIssueContext";
 import styles from "./ColorBox.module.css";
 
 interface Props {
@@ -12,13 +15,38 @@ interface Props {
    * `intensity` lets us pick mid/mild/strong shade per signal in later steps.
    */
   intensity?: "strong" | "mid" | "mild";
-  title?: string; // hover tooltip text (HTML title attribute, replaced in Step 2)
+  title?: string; // hover tooltip text
+  /** When provided, the box becomes the "active" stroke target whenever the
+   *  central ticker is showing this exact issue object. */
+  issue?: Issue;
 }
 
-export function ColorBox({ signal, size, rounded = false, intensity = "mid", title }: Props) {
-  const className = `${styles.box} ${rounded ? styles.rounded : ""} ${styles[signal]} ${
-    signal !== "empty" ? styles[intensity] : ""
-  }`;
-  const style: React.CSSProperties = { width: size, height: size };
-  return <div className={className} style={style} title={title} />;
+export function ColorBox({
+  signal,
+  size,
+  rounded = false,
+  intensity = "mid",
+  title,
+  issue,
+}: Props) {
+  const { activeIssue } = useActiveIssue();
+  const isActive = !!issue && activeIssue === issue;
+
+  const className = [
+    styles.box,
+    rounded ? styles.rounded : "",
+    styles[signal],
+    signal !== "empty" ? styles[intensity] : "",
+    isActive ? styles.active : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <div
+      className={className}
+      style={{ width: size, height: size }}
+      data-tooltip={title}
+    />
+  );
 }

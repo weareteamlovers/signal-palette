@@ -1,10 +1,23 @@
 .box {
   display: block;
   border-radius: 0;
+  /* position: relative — needed both for the active-stroke z-index lift and
+     for anchoring the [data-tooltip]::after tooltip to the box. */
+  position: relative;
 }
 
 .rounded {
   border-radius: var(--radius-small-box);
+}
+
+/* Active stroke — drawn on the box that matches the ticker's current issue.
+   Per spec: color #FFFFFF, outside position, 4px weight. Outline is used (not
+   border) so the 24×24 box geometry stays exact; outline-offset:0 puts the
+   stroke flush against the box edge. */
+.active {
+  outline: 4px solid #ffffff;
+  outline-offset: 0;
+  z-index: 2;
 }
 
 .empty {
@@ -14,14 +27,50 @@
 /* Step 1 uses the "mid" shade for everything; intensity classes are wired so
    Step 3 can swap to strong/mild without further markup changes. */
 
-.positive.strong { background: var(--signal-positive-strong); }
-.positive.mid    { background: var(--signal-positive-mid); }
-.positive.mild   { background: var(--signal-positive-mild); }
+.positive.strong {
+  background: var(--signal-positive-strong);
+}
+.positive.mid {
+  background: var(--signal-positive-mid);
+}
+.positive.mild {
+  background: var(--signal-positive-mild);
+}
 
 .neutral.strong,
 .neutral.mid,
-.neutral.mild { background: var(--signal-neutral); }
+.neutral.mild {
+  background: var(--signal-neutral);
+}
 
-.negative.strong { background: var(--signal-negative-strong); }
-.negative.mid    { background: var(--signal-negative-mid); }
-.negative.mild   { background: var(--signal-negative-mild); }
+.negative.strong {
+  background: var(--signal-negative-strong);
+}
+.negative.mid {
+  background: var(--signal-negative-mid);
+}
+.negative.mild {
+  background: var(--signal-negative-mild);
+}
+
+/* Custom hover tooltip — replaces the browser-native title popup. Only boxes
+   that have a data-tooltip attribute (set when title is provided) get one,
+   so empty placeholder boxes stay silent. */
+.box[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1d24;
+  color: #ffffff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: var(--font-base);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 14px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}

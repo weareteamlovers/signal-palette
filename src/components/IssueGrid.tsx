@@ -37,6 +37,7 @@ export function IssueGrid({ issues }: Props) {
             size={ISSUE_GRID.size}
             rounded
             title={issue.text}
+            issue={issue}
           />
         );
       })}
