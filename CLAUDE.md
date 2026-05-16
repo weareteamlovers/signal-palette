@@ -153,9 +153,9 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ### Status by step
 
-- **Step 1 (이번 푸시)**: ✅ 프로젝트 init + 디자인 토큰 + 정적 레이아웃 (mock 이슈 데이터 사용)
-- **Step 2**: ⏳ 중앙 이슈 텍스트 3초 슬라이드 애니메이션 + 컬러박스 hover 툴팁
-- **Step 3**: ⏳ `/api/analyze` route + OpenAI Responses API + `web_search` tool 연동, 실제 데이터 적용
+- **Step 1**: ✅ 프로젝트 init + 디자인 토큰 + 정적 레이아웃 (mock 이슈 데이터 사용)
+- **Step 2**: ✅ 중앙 이슈 ticker — 현재→예비 모든 이슈를 종목 순서대로 순회, 3초 머무름 + 상→하 페이드 슬라이드(0.4s), 호버 시 `scale(1.05)` + 자동 전환 일시정지, `ActiveIssueContext`로 현재 이슈를 IssueGrid에 발행해 4px `#FFFFFF` outline 트레이서 표시, 컬러박스 hover 시 다크 툴팁(`#1a1d24`). 모든 수치는 `docs/design/design-tokens.md` §10 참고.
+- **Step 3**: ⏳ `/api/analyze` route + OpenAI Responses API + `web_search` tool 연동, 실제 데이터 적용. 사용 모델은 `gpt-4o` + `web_search`로 사전 결정.
 - **Step 4 (Future)**: 수동 업데이트 버튼, 캐싱, DB+로그인, 자동 재분석
 
 ### How to verify after pulling

@@ -182,3 +182,47 @@ linear-gradient(
 | 푸터 (`18:389`) | 477 | 1138 | 325 × 16 |
 
 텍스트: `시그널 팔레트 © 2026 팀사랑꾼들. All rights reserved.`
+
+---
+
+## 10. Step 2 인터랙션
+
+> Figma에 별도 시안이 없어 사용자와 직접 결정한 수치. 다음 디자인이 들어오면 이 섹션을 우선 갱신할 것.
+
+### 10-1. 중앙 이슈 ticker
+
+| 항목 | 값 |
+|---|---|
+| 순회 범위 | 현재 포트폴리오 → 예비 포트폴리오 순. 종목 순서대로, 종목당 모든 이슈를 평탄화 (최대 320개) |
+| 이슈 머무는 시간 | **3000ms** (페이드 슬라이드 시간 포함) |
+| 슬라이드 방향 | 상→하 페이드 슬라이드 |
+| 슬라이드 길이 | 0.4s, `ease-out` |
+| 슬라이드 시작/끝 | `opacity 0 → 1`, `transform: translateY(-12px) → translateY(0)` |
+| 호버 일시정지 영역 | ticker row 전체 (종목명 + 박스 + 이슈 텍스트) |
+| 호버 시각 효과 | `transform: scale(1.05)`, `transition: transform 0.2s ease-out` |
+| 끝 도달 시 | 0번 인덱스로 loop |
+
+### 10-2. 현재 이슈 트레이서 (IssueGrid 컬러박스)
+
+| 항목 | 값 |
+|---|---|
+| stroke 색상 | `#FFFFFF` |
+| stroke 두께 | **4px** |
+| stroke 위치 | outside — CSS `outline: 4px solid #FFFFFF` + `outline-offset: 0` |
+| 활성 박스 z-index | 2 (인접 박스 위로 그려지도록) |
+| 전환 동작 | 즉시 이동 (애니메이션 없음) |
+| 상태 공유 방식 | `ActiveIssueContext` (client). ticker가 `setActiveIssue(issue)` 호출 → 각 `ColorBox`가 자기 `issue` prop과 참조 비교 |
+
+### 10-3. IssueGrid 컬러박스 hover 툴팁
+
+| 항목 | 값 |
+|---|---|
+| 적용 범위 | IssueGrid의 10×2 컬러박스만. 빈 박스(`signal=empty`)는 `data-tooltip` 미부여로 자동 제외 |
+| 배경 | `#1a1d24` |
+| 글자 | `#FFFFFF`, 12px / 14px line-height, weight 500 |
+| 패딩 | 4px 8px |
+| 모서리 | radius 4px |
+| 위치 | 박스 위, 가운데 정렬 (`bottom: calc(100% + 6px)`, `left: 50%`, `transform: translateX(-50%)`) |
+| pointer-events | none |
+| z-index | 10 |
+| 내용 | 이슈 텍스트 (HTML 기본 `title` 속성 대신 `data-tooltip` + CSS `::after`) |
