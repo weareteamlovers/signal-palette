@@ -145,7 +145,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 --signal-positive-strong: #22C77F;
 --signal-positive-mid:    #5DD9A0;
 --signal-positive-mild:   #9FE8C5;
---signal-neutral:         #F5C84C;
+--signal-neutral:         #F8E29A;
 --signal-negative-strong: #F0506E;
 --signal-negative-mid:    #F47C95;
 --signal-negative-mild:   #F8A8B8;

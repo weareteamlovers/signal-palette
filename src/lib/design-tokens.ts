@@ -23,7 +23,7 @@ export const COLORS = {
   positiveStrong: "#22C77F",
   positiveMid: "#5DD9A0",
   positiveMild: "#9FE8C5",
-  neutral: "#F5C84C",
+  neutral: "#F8E29A",
   negativeStrong: "#F0506E",
   negativeMid: "#F47C95",
   negativeMild: "#F8A8B8",
