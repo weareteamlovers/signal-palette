@@ -219,8 +219,8 @@ linear-gradient(
 |---|---|
 | 적용 범위 | IssueGrid의 10×2 컬러박스만. 빈 박스(`signal=empty`)는 `data-tooltip` 미부여로 자동 제외 |
 | 배경 | `#1a1d24` |
-| 글자 | `#FFFFFF`, 12px / 14px line-height, weight 500 |
-| 패딩 | 4px 8px |
+| 글자 | `#FFFFFF`, 16px / 19px line-height, weight 600 (종목명과 동일 스타일) |
+| 패딩 | 6px 12px |
 | 모서리 | radius 4px |
 | 위치 | 박스 위, 가운데 정렬 (`bottom: calc(100% + 6px)`, `left: 50%`, `transform: translateX(-50%)`) |
 | pointer-events | none |
