@@ -119,13 +119,19 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 |---|---|
 | 시장 범위 | 한국 + 미국 혼합 |
 | API 호출 위치 | 백엔드 (Next.js API route, `OPENAI_API_KEY` 서버에서만) |
-| 이슈 검색 방식 | OpenAI Responses API + `web_search` tool |
-| 종합 컬러 산출 | GPT가 직접 도출 (단순 다수결 아님) |
+| 이슈 검색 방식 | OpenAI Responses API + `web_search` tool, 모델 `gpt-4o` |
+| 분석 호출 분할 | 종목당 1회 (×16, 클라이언트에서 병렬 fetch) + 포트폴리오 overall 1회 (×2, 해당 포트폴리오의 8종목 완료 후 자동 dispatch) = 호출 약 18회 / 페이지 로드 |
+| 분석 호출 시점 | 페이지 첫 로드 시 클라이언트가 자동 fetch. 캐싱 없음 (새로고침 = 재호출). 추후 Step 4에서 캐싱 예정 |
+| 진행 상태 UX | 카드는 즉시 placeholder + shimmer로 렌더, 응답 도착 종목부터 좌상→우하 staggered fade-in으로 채워짐 (50ms 간격, 박스당 0.2s) |
+| 실패 시 fallback | 해당 종목/포트폴리오 단위로만 mock 데이터 대체. 콘솔 경고 로그 |
+| 종합 컬러 산출 | GPT가 직접 도출 (단순 다수결 아님). 포트폴리오 overall은 종목 8개 결과를 입력으로 한 별도 GPT 호출 |
+| 이슈 텍스트 | 한 문장, 최대 30자, **한국어 강제** (영문 기사 참고했어도 한국어로 번역/요약). `AI`/`TSMC` 같은 외래어 표기는 허용 |
+| 신호 강도 | GPT가 strong/mid/mild 산출. neutral은 항상 mid. UI는 7색 매핑 (positive_strong → … → negative_strong) |
+| 이슈 정렬 | 7-bucket 순서: `pos_strong → pos_mid → pos_mild → neutral → neg_mild → neg_mid → neg_strong`. GPT가 prompt 룰을 못 지킬 수 있어 서버 `sortByBucket`로 안정 정렬 보장 |
 | 1차 MVP 데이터 저장 | 없음 — 매 접속 시 default 사용. 추후 DB+로그인 예정 |
-| 분석 시점 | 첫 접속 시 1회. 추후 주기 분석 + 캐싱 예정 |
 | 푸시 브랜치 | `main` (사용자 명시 승인) |
 | 종목 표기 | 한글 명칭 그대로 (티커 사용 금지) |
-| 시그널 컬러 (Step 1) | 아래 "Color tokens" 참고. 추후 green/red 5단계로 확장 예정 |
+| 시그널 컬러 | 아래 "Color tokens" 참고. positive/negative 각 3단계 + neutral 1단계 + empty = 8 |
 | 종합 박스 크기 | 현재 포트폴리오와 예비 포트폴리오 의도적으로 다름 (현재=강조, 예비=축소) |
 
 ### Color tokens (MVP — `src/app/globals.css` 와 동기화)
@@ -155,8 +161,8 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 - **Step 1**: ✅ 프로젝트 init + 디자인 토큰 + 정적 레이아웃 (mock 이슈 데이터 사용)
 - **Step 2**: ✅ 중앙 이슈 ticker — 현재→예비 모든 이슈를 종목 순서대로 순회, 3초 머무름 + 상→하 페이드 슬라이드(0.4s), 호버 시 `scale(1.05)` + 자동 전환 일시정지, `ActiveIssueContext`로 현재 이슈를 IssueGrid에 발행해 4px `#FFFFFF` outline 트레이서 표시, 컬러박스 hover 시 다크 툴팁(`#1a1d24`). 모든 수치는 `docs/design/design-tokens.md` §10 참고.
-- **Step 3**: ⏳ `/api/analyze` route + OpenAI Responses API + `web_search` tool 연동, 실제 데이터 적용. 사용 모델은 `gpt-4o` + `web_search`로 사전 결정.
-- **Step 4 (Future)**: 수동 업데이트 버튼, 캐싱, DB+로그인, 자동 재분석
+- **Step 3**: ✅ `/api/analyze` route + `lib/openai.ts` (gpt-4o + `web_search`). `AnalysisProvider`(client)가 종목 16개를 병렬 fetch, 각 카드는 shimmer 후 staggered fade-in으로 채워지고, 한 포트폴리오 8종목 완료 시 portfolio-overall 호출이 자동 dispatch됨. 실패 시 종목 단위 mock fallback. GPT가 7-bucket 순서로 응답하지만 서버에서 `sortByBucket`로 보강. 이슈 텍스트는 한국어 강제 + 중복 통합 prompt. 모든 수치/룰은 `docs/design/design-tokens.md` §11 참고.
+- **Step 4 (Future)**: 수동 업데이트 버튼, 캐싱(서버/클라), DB+로그인, 자동 재분석, 비용 제어
 
 ### How to verify after pulling
 

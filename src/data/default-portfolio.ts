@@ -1,4 +1,4 @@
-import type { Portfolio, Signal, Issue } from "@/types";
+import type { Intensity, Issue, OverallSignal, Portfolio, Signal, Stock } from "@/types";
 
 // Default portfolio names — provided by user. Use Korean names as-is, no tickers.
 export const CURRENT_STOCK_NAMES = [
@@ -23,7 +23,7 @@ export const SPARE_STOCK_NAMES = [
   "크라우드스트라이크 홀딩스",
 ] as const;
 
-// --- Mock data for Step 1 (replaced by OpenAI in Step 3) ---
+// --- Mock data — used only as a per-stock fallback when /api/analyze fails. ---
 
 const MOCK_KEYWORDS: Record<Signal, string[]> = {
   positive: [
@@ -54,30 +54,44 @@ const MOCK_KEYWORDS: Record<Signal, string[]> = {
   ],
 };
 
+/** GPT returns issues in this exact bucket order; mock fallback mirrors it so
+ *  the live ↔ fallback transition does not visually reshuffle a card. */
+const STRENGTH_ORDER: ReadonlyArray<{ signal: Signal; intensity: Intensity }> = [
+  { signal: "positive", intensity: "strong" },
+  { signal: "positive", intensity: "mid" },
+  { signal: "positive", intensity: "mild" },
+  { signal: "neutral", intensity: "mid" },
+  { signal: "negative", intensity: "mild" },
+  { signal: "negative", intensity: "mid" },
+  { signal: "negative", intensity: "strong" },
+];
+
 function makeMockIssues(seed: number): Issue[] {
-  const counts = [
-    { signal: "positive" as Signal, n: 6 + (seed % 5) },
-    { signal: "neutral" as Signal, n: 3 + ((seed + 1) % 4) },
-    { signal: "negative" as Signal, n: 2 + ((seed + 2) % 4) },
-  ];
   const out: Issue[] = [];
-  for (const { signal, n } of counts) {
+  for (let bucket = 0; bucket < STRENGTH_ORDER.length; bucket += 1) {
+    const { signal, intensity } = STRENGTH_ORDER[bucket];
+    const n = 1 + ((seed + bucket) % 3); // 1..3 per bucket
     const pool = MOCK_KEYWORDS[signal];
     for (let i = 0; i < n; i += 1) {
-      out.push({ signal, text: pool[(seed + i) % pool.length] });
+      out.push({ text: pool[(seed + i + bucket) % pool.length], signal, intensity });
     }
   }
   return out.slice(0, 20);
 }
 
-function makeOverall(issues: Issue[]): Signal {
+function makeOverall(issues: Issue[]): OverallSignal {
+  // Mock fallback only — the real Stock.overall comes from GPT.
   const score = issues.reduce(
     (s, i) => s + (i.signal === "positive" ? 1 : i.signal === "negative" ? -1 : 0),
     0,
   );
-  if (score >= 3) return "positive";
-  if (score <= -3) return "negative";
-  return "neutral";
+  if (score >= 5) return { signal: "positive", intensity: "strong" };
+  if (score >= 2) return { signal: "positive", intensity: "mid" };
+  if (score >= 1) return { signal: "positive", intensity: "mild" };
+  if (score <= -5) return { signal: "negative", intensity: "strong" };
+  if (score <= -2) return { signal: "negative", intensity: "mid" };
+  if (score <= -1) return { signal: "negative", intensity: "mild" };
+  return { signal: "neutral", intensity: "mid" };
 }
 
 export const DEFAULT_PORTFOLIOS: Portfolio[] = [
@@ -88,7 +102,7 @@ export const DEFAULT_PORTFOLIOS: Portfolio[] = [
       const issues = makeMockIssues(i + 1);
       return { name, issues, overall: makeOverall(issues) };
     }),
-    overall: "positive",
+    overall: { signal: "positive", intensity: "mid" },
   },
   {
     label: "예비 포트폴리오",
@@ -97,6 +111,16 @@ export const DEFAULT_PORTFOLIOS: Portfolio[] = [
       const issues = makeMockIssues(i + 5);
       return { name, issues, overall: makeOverall(issues) };
     }),
-    overall: "neutral",
+    overall: { signal: "neutral", intensity: "mid" },
   },
 ];
+
+/** Per-stock fallback used when /api/analyze fails for a stock. Returns a
+ *  fresh Stock object based on the deterministic mock issues for that name. */
+export function getMockStock(name: string): Stock {
+  for (const p of DEFAULT_PORTFOLIOS) {
+    const s = p.stocks.find((s) => s.name === name);
+    if (s) return s;
+  }
+  return { name, issues: [], overall: { signal: "neutral", intensity: "mid" } };
+}

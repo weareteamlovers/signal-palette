@@ -24,8 +24,7 @@
   background: var(--signal-empty);
 }
 
-/* Step 1 uses the "mid" shade for everything; intensity classes are wired so
-   Step 3 can swap to strong/mild without further markup changes. */
+/* Filled signal colors — GPT now drives intensity, so all three shades matter. */
 
 .positive.strong {
   background: var(--signal-positive-strong);
@@ -51,6 +50,45 @@
 }
 .negative.mild {
   background: var(--signal-negative-mild);
+}
+
+/* Step 3 — analysis in flight: shimmering placeholder.
+   Left→right highlight sweep over the empty box color. */
+.shimmer {
+  background-color: var(--signal-empty);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.16) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* Step 3 — fade-in for a single box. Stagger comes from inline animation-delay
+   set by the parent grid. `backwards` keeps the box invisible during the delay. */
+.fadeIn {
+  animation: boxFadeIn 0.2s ease-out backwards;
+}
+
+@keyframes boxFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* Custom hover tooltip — replaces the browser-native title popup. Only boxes

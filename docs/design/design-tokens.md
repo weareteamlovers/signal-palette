@@ -226,3 +226,63 @@ linear-gradient(
 | pointer-events | none |
 | z-index | 10 |
 | 내용 | 이슈 텍스트 (HTML 기본 `title` 속성 대신 `data-tooltip` + CSS `::after`) |
+
+---
+
+## 11. Step 3 분석 흐름
+
+> 1차 MVP의 데이터 수집·표시 흐름. 변경 시 `src/lib/openai.ts`, `src/components/AnalysisProvider.tsx`, `src/app/api/analyze/route.ts`, `src/components/ColorBox.module.css`와 동기화.
+
+### 11-1. 호출 구조
+
+| 항목 | 값 |
+|---|---|
+| 모델 | `gpt-4o` |
+| 검색 도구 | OpenAI Responses API + `tools: [{ type: "web_search" }]` |
+| 종목 분석 호출 | 종목당 1회 × 16 (현재 8 + 예비 8), 클라이언트에서 페이지 로드 시 병렬 fetch |
+| 포트폴리오 overall 호출 | 포트폴리오당 1회 × 2. 해당 포트폴리오의 8종목이 모두 ready 상태가 되면 `AnalysisProvider`가 자동 dispatch. web_search 없이 종목 8개 결과를 입력으로 종합 판단 |
+| 페이지 로드당 총 호출 | 약 18회 |
+| 캐싱 | 없음 (Step 4에서 추가 예정) |
+| API endpoint | `POST /api/analyze`, body `{ type: "stock", stockName }` 또는 `{ type: "portfolio-overall", label, stocks }` |
+| OPENAI_API_KEY | 서버 환경 변수에서만 읽음. Codespaces Secret 또는 `.env.local` |
+
+### 11-2. Prompt 룰 (종목 분석)
+
+| 항목 | 룰 |
+|---|---|
+| 검색 시간 범위 | 최근 7일 |
+| 이슈 텍스트 | 한 문장, 최대 30자, **한국어 강제**. 영문 기사 참고해도 한국어로 번역/요약. `AI`/`TSMC` 등 외래어 표기는 허용 |
+| 이슈 개수 | 최대 20개 (의미 있는 것만, 적으면 적은 대로) |
+| signal | `positive` / `neutral` / `negative` |
+| intensity | `strong` / `mid` / `mild`. neutral의 intensity는 항상 `mid` |
+| 중복 제거 | 같은 사건의 다른 측면을 별개 이슈로 나열 금지. 한 사건 = 한 줄. prompt에 나쁜 예/좋은 예 명시 |
+| 정렬 순서 | 7-bucket: `pos_strong → pos_mid → pos_mild → neutral → neg_mild → neg_mid → neg_strong`. 버킷 내에서는 중요도 순 |
+| overall | 단순 다수결 금지. 이슈의 중요도/시장 맥락을 종합한 GPT의 단일 판단 |
+
+### 11-3. 서버 보강 (safety net)
+
+| 항목 | 동작 |
+|---|---|
+| `sortByBucket` | GPT 응답을 받은 직후 코드에서 7-bucket 순서로 재정렬. `Array.prototype.sort`는 안정 정렬이므로 GPT의 버킷 내 중요도 순은 유지 |
+| `normalizeIssue` / `normalizeOverall` | signal/intensity 타입 가드, neutral은 intensity를 `mid`로 강제 |
+| 최대 20개 cap | `slice(0, 20)`로 그리드 초과 분 절단 |
+
+### 11-4. 클라이언트 상태 (AnalysisProvider)
+
+| 상태 | 형식 |
+|---|---|
+| `stocks` | `Record<stockName, { status: "loading" } \| { status: "ready", stock, source: "live" \| "mock" }>` |
+| `overalls` | `Record<"current" \| "spare", { status: "loading" } \| { status: "ready", overall, source: "live" \| "mock" }>` |
+| Fetch 실패 fallback | 종목: `getMockStock(name)`로 대체 / 포트폴리오 overall: `{ signal: "neutral", intensity: "mid" }` |
+| 자동 dispatch | 한 포트폴리오의 8종목이 모두 ready 시 portfolio-overall 호출 1회 (중복 방지: `overallDispatched` ref) |
+
+### 11-5. 로딩 / 완료 애니메이션
+
+| 항목 | 값 |
+|---|---|
+| 로딩 시 박스 | `.box.shimmer` — 배경 `var(--signal-empty)` 위로 좌→우 하이라이트(white 16%) 흐름 |
+| Shimmer keyframe | `shimmer` 1.5s ease-in-out infinite, `background-position 200% 0 → -200% 0` |
+| 완료 시 박스 등장 | `.box.fadeIn` — `boxFadeIn 0.2s ease-out backwards`. `backwards`로 delay 동안 invisible 유지 |
+| Stagger | 박스 인덱스 × 50ms = `animation-delay`. 20개 박스 채움에 약 1.0s 소요 |
+| 적용 범위 | 이슈 그리드 박스, 종목 종합 박스, 포트폴리오 종합 박스 모두 동일 패턴 (`loading` prop) |
+| Ticker placeholder | flat issues 0개일 때 ("분석 중…" 한 줄 표시, ticker 애니메이션 비활성) |

@@ -1,32 +1,39 @@
 import { ISSUE_GRID } from "@/lib/design-tokens";
-import type { Issue, Signal } from "@/types";
+import type { Issue } from "@/types";
 import { ColorBox } from "./ColorBox";
 import styles from "./IssueGrid.module.css";
 
 interface Props {
-  issues: Issue[];
+  /** null while the stock's analysis is in flight — renders all 20 boxes
+   *  as shimmering placeholders. */
+  issues: Issue[] | null;
 }
 
-const SIGNAL_ORDER: Signal[] = ["positive", "neutral", "negative"];
+const TOTAL = ISSUE_GRID.cols * ISSUE_GRID.rows; // 20
 
 export function IssueGrid({ issues }: Props) {
-  // Sort by signal order: green → yellow → red, then pad with empty up to 20.
-  const sorted = [...issues].sort(
-    (a, b) => SIGNAL_ORDER.indexOf(a.signal) - SIGNAL_ORDER.indexOf(b.signal),
-  );
-  const total = ISSUE_GRID.cols * ISSUE_GRID.rows; // 20
+  const isLoading = issues == null;
+  const gridStyle: React.CSSProperties = {
+    gridTemplateColumns: `repeat(${ISSUE_GRID.cols}, ${ISSUE_GRID.size}px)`,
+    gridTemplateRows: `repeat(${ISSUE_GRID.rows}, ${ISSUE_GRID.size}px)`,
+    gap: ISSUE_GRID.gap,
+  };
 
+  if (isLoading) {
+    return (
+      <div className={styles.grid} style={gridStyle}>
+        {Array.from({ length: TOTAL }).map((_, i) => (
+          <ColorBox key={i} size={ISSUE_GRID.size} rounded loading />
+        ))}
+      </div>
+    );
+  }
+
+  // Render in GPT order — sort logic intentionally removed in Step 3.
   return (
-    <div
-      className={styles.grid}
-      style={{
-        gridTemplateColumns: `repeat(${ISSUE_GRID.cols}, ${ISSUE_GRID.size}px)`,
-        gridTemplateRows: `repeat(${ISSUE_GRID.rows}, ${ISSUE_GRID.size}px)`,
-        gap: ISSUE_GRID.gap,
-      }}
-    >
-      {Array.from({ length: total }).map((_, i) => {
-        const issue = sorted[i];
+    <div className={styles.grid} style={gridStyle}>
+      {Array.from({ length: TOTAL }).map((_, i) => {
+        const issue = issues[i];
         if (!issue) {
           return <ColorBox key={i} signal="empty" size={ISSUE_GRID.size} rounded />;
         }
@@ -34,10 +41,12 @@ export function IssueGrid({ issues }: Props) {
           <ColorBox
             key={i}
             signal={issue.signal}
+            intensity={issue.intensity}
             size={ISSUE_GRID.size}
             rounded
             title={issue.text}
             issue={issue}
+            staggerIndex={i}
           />
         );
       })}
