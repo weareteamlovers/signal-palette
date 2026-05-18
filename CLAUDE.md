@@ -151,10 +151,8 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 --signal-negative-mild:   #F8A8B8;
 --signal-empty:           rgba(255, 255, 255, 0.06);
 
---btn-bg-primary:    #FFFFFF;  /* 현재 포트폴리오 변경 버튼 */
---btn-border-primary:#DDDDDD;
---btn-bg-secondary:    #EFEFEF; /* 예비 포트폴리오 변경 버튼 */
---btn-border-secondary:#C2C2C2;
+--btn-bg:   #444857;  /* 수정 버튼 — 두 포트폴리오 동일 */
+--btn-text: #E5E5E5;
 ```
 
 ### Status by step

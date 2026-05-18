@@ -7,8 +7,8 @@ import {
   SPARE_HEADER,
 } from "@/lib/design-tokens";
 import { useAnalysis } from "./AnalysisProvider";
-import { ChangeButton } from "./ChangeButton";
 import { ColorBox } from "./ColorBox";
+import { EditButton } from "./EditButton";
 import { StockCard } from "./StockCard";
 import styles from "./PortfolioSection.module.css";
 
@@ -60,7 +60,7 @@ export function PortfolioSection({ variant, label, stockNames }: Props) {
         className={styles.button}
         style={{ left: header.buttonX, top: header.buttonY }}
       >
-        <ChangeButton variant={isCurrent ? "primary" : "secondary"} />
+        <EditButton />
       </div>
 
       {/* 4×2 stock cards */}

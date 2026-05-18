@@ -1,0 +1,20 @@
+.btn {
+  /* From Figma 18:8 (nodes 59:18 / 64:810): 45 × 34, radius 12,
+     dark fill #444857 with light-gray text #E5E5E5, weight 600 / 16px
+     (same size as the stock name). */
+  width: 45px;
+  height: 34px;
+  border-radius: 12px;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border: none;
+  padding: 0;
+  font-family: var(--font-base);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

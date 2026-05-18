@@ -31,12 +31,9 @@ export const COLORS = {
   // Empty / placeholder color for unused boxes (per spec: "디자인에 어울리는 투명색 혹은 흰색")
   empty: "rgba(255, 255, 255, 0.06)",
 
-  // Change button
-  changeButtonBgPrimary: "#FFFFFF",
-  changeButtonBorderPrimary: "#DDDDDD",
-  changeButtonBgSecondary: "#EFEFEF",
-  changeButtonBorderSecondary: "#C2C2C2",
-  changeButtonText: "#000000",
+  // Edit button — single style for both portfolios (no variant).
+  editButtonBg: "#444857",
+  editButtonText: "#E5E5E5",
 
   textPrimary: "#FFFFFF",
 } as const;
@@ -110,20 +107,22 @@ export const SECTIONS = {
   spare: { x: 0, y: 645, width: 1280, height: 540 },
 } as const;
 
-// Header layouts
+// Header layouts. Edit button geometry comes from Figma nodes 59:18 / 64:810
+// (45 × 34, radius 12, fill #444857, 16px text). The two headers intentionally
+// use different vertical alignment rules — see design-tokens.md §7.
 export const CURRENT_HEADER = {
   // Title "현재 포트폴리오"
   titleY: 78,
   titleHeight: 19,
-  // Comp box 40x40 — bottom-aligned with title (both end at y=97)
+  // Comp box 40×40 — bottom-aligned with title and button (all end at y=97)
   compBoxY: 57,
   compBoxSize: 40,
-  // 변경 button: 51x19 at x=770, y=78
-  buttonX: 770,
-  buttonY: 78,
-  buttonWidth: 51,
-  buttonHeight: 19,
-  // Title and button x-positions from Figma
+  // Edit button 45×34 — bottom-aligned at y=97
+  buttonX: 812,
+  buttonY: 63,
+  buttonWidth: 45,
+  buttonHeight: 34,
+  // Title and box x-positions from Figma
   titleX: 586,
   compBoxX: 696,
 } as const;
@@ -131,12 +130,14 @@ export const CURRENT_HEADER = {
 export const SPARE_HEADER = {
   titleY: 694,
   titleHeight: 19,
-  compBoxY: 694, // top-aligned (both 19h)
+  compBoxY: 694, // top-aligned with title (both 19h, both end at y=713)
   compBoxSize: 19,
-  buttonX: 770,
-  buttonY: 693,
-  buttonWidth: 51,
-  buttonHeight: 19,
+  // Edit button 45×34 — vertical-center aligned with title/comp box
+  // (button center y = 704, title/comp center y = 703.5)
+  buttonX: 812,
+  buttonY: 687,
+  buttonWidth: 45,
+  buttonHeight: 34,
   titleX: 586,
   compBoxX: 696,
 } as const;

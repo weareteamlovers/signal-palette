@@ -17,12 +17,9 @@
   --signal-negative-mild: #f8a8b8;
   --signal-empty: rgba(255, 255, 255, 0.06);
 
-  /* Change button */
-  --btn-bg-primary: #ffffff;
-  --btn-border-primary: #dddddd;
-  --btn-bg-secondary: #efefef;
-  --btn-border-secondary: #c2c2c2;
-  --btn-text: #000000;
+  /* Edit button (formerly "Change button"). Single style for both portfolios. */
+  --btn-bg: #444857;
+  --btn-text: #e5e5e5;
 
   --text-primary: #ffffff;
 
