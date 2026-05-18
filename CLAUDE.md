@@ -133,6 +133,10 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 | 종목 표기 | 한글 명칭 그대로 (티커 사용 금지) |
 | 시그널 컬러 | 아래 "Color tokens" 참고. positive/negative 각 3단계 + neutral 1단계 + empty = 8 |
 | 종합 박스 크기 | 현재 포트폴리오와 예비 포트폴리오 의도적으로 다름 (현재=강조, 예비=축소) |
+| 반응형 breakpoint | `<768` mobile, `768–1279` tablet, `≥1280` desktop. CSS 미디어 쿼리 + `AnalysisProvider`의 `viewport` state 양쪽에 동기화 |
+| 모바일 재분석 | viewport가 mobile 경계를 진입/이탈할 때마다 16종목 + 2 overall 자동 재 fetch. mobile은 `maxIssues=10`, 그 외 20 |
+| 모바일 종목명 처리 | 카드 폭 150에서 종목명이 overflow하면 우→좌 marquee (`StockNameMarquee`, 50px/s + 0.6s 시작 대기). 짧으면 정적 |
+| 터치 툴팁 | 터치 입력(`pointerType === "touch"`)에서 컬러박스 탭 = 3초 툴팁 표시. 같은 박스 재탭 = 닫기, 다른 박스 탭 = 즉시 전환. 마우스 hover는 기존 그대로 |
 
 ### Color tokens (MVP — `src/app/globals.css` 와 동기화)
 
@@ -160,6 +164,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - **Step 1**: ✅ 프로젝트 init + 디자인 토큰 + 정적 레이아웃 (mock 이슈 데이터 사용)
 - **Step 2**: ✅ 중앙 이슈 ticker — 현재→예비 모든 이슈를 종목 순서대로 순회, 3초 머무름 + 상→하 페이드 슬라이드(0.4s), 호버 시 `scale(1.05)` + 자동 전환 일시정지, `ActiveIssueContext`로 현재 이슈를 IssueGrid에 발행해 4px `#FFFFFF` outline 트레이서 표시, 컬러박스 hover 시 다크 툴팁(`#1a1d24`). 모든 수치는 `docs/design/design-tokens.md` §10 참고.
 - **Step 3**: ✅ `/api/analyze` route + `lib/openai.ts` (gpt-4o + `web_search`). `AnalysisProvider`(client)가 종목 16개를 병렬 fetch, 각 카드는 shimmer 후 staggered fade-in으로 채워지고, 한 포트폴리오 8종목 완료 시 portfolio-overall 호출이 자동 dispatch됨. 실패 시 종목 단위 mock fallback. GPT가 7-bucket 순서로 응답하지만 서버에서 `sortByBucket`로 보강. 이슈 텍스트는 한국어 강제 + 중복 통합 prompt. 모든 수치/룰은 `docs/design/design-tokens.md` §11 참고.
+- **반응형**: ✅ 세 breakpoint(<768 mobile / 768–1279 tablet / ≥1280 desktop). `AnalysisProvider`가 viewport tier를 노출하고, 모바일 경계 진입/이탈 시 16종목 + 2 포트폴리오 overall을 `maxIssues`(모바일 10 / 그 외 20)로 재 fetch. 태블릿/모바일은 화면 상단에 sticky `TopTicker`(그라데이션 35px bar)가 데스크탑의 중앙 ticker를 대체. 모바일 카드는 150×160 + radius 13 + 5×2 그리드, 긴 종목명은 `StockNameMarquee`로 50px/s 우→좌 슬라이딩. 터치 디바이스에서는 컬러박스 탭 시 `ActiveTooltipContext`가 3초간 툴팁 표시(같은 박스 재탭 = 닫기, 다른 박스 탭 = 전환). 모든 수치는 `docs/design/design-tokens.md` §12 (Tablet) / §13 (Mobile) 참고.
 - **Step 4 (Future)**: 수동 업데이트 버튼, 캐싱(서버/클라), DB+로그인, 자동 재분석, 비용 제어
 
 ### How to verify after pulling
