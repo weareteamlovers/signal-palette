@@ -4,6 +4,7 @@ import { STOCK_COMP_BOX } from "@/lib/design-tokens";
 import { useAnalysis, type ViewportMode } from "./AnalysisProvider";
 import { ColorBox } from "./ColorBox";
 import { IssueGrid } from "./IssueGrid";
+import { StockNameMarquee } from "./StockNameMarquee";
 import styles from "./StockCard.module.css";
 
 interface Props {
@@ -31,11 +32,21 @@ export function StockCard({ name, variant }: Props) {
   const overall = ready ? state.stock.overall : null;
   const issues = ready ? state.stock.issues : null;
 
+  // Mobile cards are narrow (150px); long names overflow and get marquee-scrolled.
+  // Desktop/tablet cards are 290px and fit the existing names statically.
+  const isMobile = viewport === "mobile";
+
   return (
     <div className={styles.card}>
       {/* Header: stock name + comprehensive color box, top-aligned and centered horizontally */}
       <div className={styles.header}>
-        <span className={styles.name}>{name}</span>
+        {isMobile ? (
+          <span className={styles.nameSlot}>
+            <StockNameMarquee text={name} />
+          </span>
+        ) : (
+          <span className={styles.name}>{name}</span>
+        )}
         <div style={{ width: STOCK_COMP_BOX.gap }} aria-hidden />
         {overall ? (
           <ColorBox

@@ -1,7 +1,9 @@
 "use client";
 
+import { useId, type PointerEvent } from "react";
 import type { Intensity, Issue, Signal } from "@/types";
 import { useActiveIssue } from "./ActiveIssueContext";
+import { useActiveTooltip } from "./ActiveTooltipContext";
 import styles from "./ColorBox.module.css";
 
 interface Props {
@@ -32,7 +34,12 @@ export function ColorBox({
   staggerIndex,
 }: Props) {
   const { activeIssue } = useActiveIssue();
+  const { activeKey, toggle } = useActiveTooltip();
+  // Stable per-box id used as the tooltip key. Same id for the lifetime of
+  // this <ColorBox/> instance — survives content swaps across renders.
+  const tooltipKey = useId();
   const isActive = !!issue && activeIssue === issue;
+  const tooltipOpen = !!title && activeKey === tooltipKey;
 
   if (loading) {
     const className = [styles.box, rounded ? styles.rounded : "", styles.shimmer]
@@ -47,6 +54,7 @@ export function ColorBox({
     signal ? styles[signal] : "",
     signal && signal !== "empty" ? styles[intensity] : "",
     isActive ? styles.active : "",
+    tooltipOpen ? styles.tooltipOpen : "",
     typeof staggerIndex === "number" ? styles.fadeIn : "",
   ]
     .filter(Boolean)
@@ -57,5 +65,21 @@ export function ColorBox({
     style.animationDelay = `${staggerIndex * 50}ms`;
   }
 
-  return <div className={className} style={style} data-tooltip={title} />;
+  // Touch tap → show tooltip for 3s. Mouse pointerType keeps the existing
+  // CSS-only :hover behavior. Boxes without a title (empty placeholders or
+  // the central signal box) silently ignore taps.
+  const handlePointerUp = (e: PointerEvent<HTMLDivElement>) => {
+    if (!title) return;
+    if (e.pointerType !== "touch") return;
+    toggle(tooltipKey);
+  };
+
+  return (
+    <div
+      className={className}
+      style={style}
+      data-tooltip={title}
+      onPointerUp={handlePointerUp}
+    />
+  );
 }

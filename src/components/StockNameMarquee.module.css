@@ -1,0 +1,32 @@
+.container {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  /* Fills whatever width the parent .header makes available for the name.
+     The parent's flex layout decides the actual usable px. */
+  max-width: 100%;
+  vertical-align: top;
+}
+
+.static {
+  display: inline-block;
+}
+
+/* Right→left marquee. Start with the text positioned just off the right edge
+   of the container (translateX(100%)), end with it just off the left edge
+   (translateX(-100%)). A small negative animation-delay built into the inline
+   style burns the first START_PAUSE seconds before motion is visible. */
+.scrolling {
+  display: inline-block;
+  animation: marquee linear infinite;
+  will-change: transform;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}

@@ -91,10 +91,14 @@
   }
 }
 
-/* Custom hover tooltip — replaces the browser-native title popup. Only boxes
-   that have a data-tooltip attribute (set when title is provided) get one,
-   so empty placeholder boxes stay silent. */
-.box[data-tooltip]:hover::after {
+/* Custom tooltip — replaces the browser-native title popup. Only boxes that
+   have a data-tooltip attribute (set when title is provided) get one, so empty
+   placeholder boxes stay silent.
+   - Mouse pointers: shown on :hover (any viewport).
+   - Touch pointers: shown when ActiveTooltipContext flags this box open
+     (3-second auto-close, see ColorBox.tsx onPointerUp). */
+.box[data-tooltip]:hover::after,
+.box[data-tooltip].tooltipOpen::after {
   content: attr(data-tooltip);
   position: absolute;
   bottom: calc(100% + 6px);

@@ -38,6 +38,21 @@
   margin-top: 41px;
 }
 
+/* Mobile-only name container — holds a marquee that scrolls long names.
+   Width is fixed so the marquee can decide overflow:
+     card 150 − left/right padding 7+7 − comp box 30 − gap 3 = 103 */
+.nameSlot {
+  display: inline-block;
+  width: 103px;
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 14px;
+  color: var(--text-primary);
+  /* Match the comp box top edge in the flex header. */
+  vertical-align: top;
+}
+
 /* --- Mobile (width < 768) — narrower card, larger radius, smaller name font. */
 @media (max-width: 767px) {
   .card {
