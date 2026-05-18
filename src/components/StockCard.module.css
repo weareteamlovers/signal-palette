@@ -1,13 +1,14 @@
+/* Desktop / tablet: 290 × 160, radius 7px. Mobile: 150 × 160, radius 13px. */
 .card {
   position: relative;
+  width: 290px;
+  height: 160px;
   background: var(--bg-card);
   border-radius: var(--radius-card);
-  /* Card height 160. Header sits at top (Figma y=162-192 inside card y=147-307),
-     grid sits at y=233-285 inside card. We use flex with measured spacing. */
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* From Figma: text top y=162 inside card top y=147 → 15px from card top */
+  /* Stock name top at y=162 inside card top y=147 (desktop) → 15px from card top. */
   padding-top: 15px;
 }
 
@@ -31,8 +32,20 @@
 }
 
 .gridWrap {
-  /* Grid row 1 starts at y=233 inside card y=147 → 86px from card top.
-     Header text top is at 15px, header height up to 45px (with 30 comp box).
-     So gap from header bottom (45) to grid top (86) = 41px. */
+  /* Grid row 1 starts at y=86 inside the card. Header height is fixed 30, so
+     gap from header bottom (15+30=45) to grid top (86) = 41px. Mobile uses the
+     same internal layout because the grid still starts at y=86 from card top. */
   margin-top: 41px;
+}
+
+/* --- Mobile (width < 768) — narrower card, larger radius, smaller name font. */
+@media (max-width: 767px) {
+  .card {
+    width: 150px;
+    border-radius: 13px;
+  }
+  .name {
+    font-size: 12px;
+    line-height: 14px;
+  }
 }

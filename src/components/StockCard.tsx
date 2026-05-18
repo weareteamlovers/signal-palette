@@ -1,7 +1,7 @@
 "use client";
 
-import { CARD, STOCK_COMP_BOX } from "@/lib/design-tokens";
-import { useAnalysis } from "./AnalysisProvider";
+import { STOCK_COMP_BOX } from "@/lib/design-tokens";
+import { useAnalysis, type ViewportMode } from "./AnalysisProvider";
 import { ColorBox } from "./ColorBox";
 import { IssueGrid } from "./IssueGrid";
 import styles from "./StockCard.module.css";
@@ -11,17 +11,28 @@ interface Props {
   variant: "current" | "spare";
 }
 
+/** Stock-level overall comp box size:
+ *    desktop  current=30, spare=19
+ *    tablet   current=30, spare=30
+ *    mobile   current=30, spare=30  */
+function stockCompSize(variant: "current" | "spare", viewport: ViewportMode): number {
+  if (viewport === "desktop") {
+    return variant === "current" ? STOCK_COMP_BOX.current : STOCK_COMP_BOX.spare;
+  }
+  return 30; // tablet & mobile both use 30 regardless of variant
+}
+
 export function StockCard({ name, variant }: Props) {
-  const { stocks } = useAnalysis();
+  const { stocks, viewport } = useAnalysis();
   const state = stocks[name] ?? { status: "loading" };
-  const compSize = variant === "current" ? STOCK_COMP_BOX.current : STOCK_COMP_BOX.spare;
+  const compSize = stockCompSize(variant, viewport);
 
   const ready = state.status === "ready";
   const overall = ready ? state.stock.overall : null;
   const issues = ready ? state.stock.issues : null;
 
   return (
-    <div className={styles.card} style={{ width: CARD.width, height: CARD.height }}>
+    <div className={styles.card}>
       {/* Header: stock name + comprehensive color box, top-aligned and centered horizontally */}
       <div className={styles.header}>
         <span className={styles.name}>{name}</span>
@@ -37,7 +48,7 @@ export function StockCard({ name, variant }: Props) {
         )}
       </div>
 
-      {/* 20-issue grid */}
+      {/* Issue grid — 10×2 on desktop/tablet, 5×2 on mobile (driven by IssueGrid). */}
       <div className={styles.gridWrap}>
         <IssueGrid issues={issues} />
       </div>

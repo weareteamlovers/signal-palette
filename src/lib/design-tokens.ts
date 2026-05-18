@@ -148,3 +148,112 @@ export const FOOTER = {
   y: 1138,
   fontSize: 14,
 } as const;
+
+// ----- Responsive --------------------------------------------------------
+//
+// Breakpoints decide which layout (and how many issues per stock) to use.
+// Matches AnalysisProvider's matchMedia query.
+//
+//   width <  768                → mobile  (5×2 grid =  10 issues / stock)
+//   768  ≤ width < 1280         → tablet  (10×2 grid = 20 issues / stock)
+//   width ≥ 1280                → desktop (10×2 grid = 20 issues / stock)
+//
+// Numbers below come straight from Figma frames 18:8 (desktop), 61:2 (tablet)
+// and 58:3 (mobile). Do not edit without rechecking those nodes.
+
+export const BREAKPOINTS = {
+  mobileMax: 767, // < 768 → mobile
+  tabletMax: 1279, // 768–1279 → tablet
+} as const;
+
+/** Tablet layout — frame 768 wide, same 290×160 cards as desktop. */
+export const TABLET = {
+  frameWidth: 768,
+  // Top ticker bar (full width, sticky at top of viewport).
+  ticker: { height: 35 },
+  // Section gradients (full bleed).
+  sections: {
+    current: { y: 101, height: 805 },
+    spare: { y: 944, height: 881 },
+  },
+  // Cards: 2 columns × 4 rows. col x = 82, 395; row y = 147, 326, 505, 684.
+  card: { cols: 2, rows: 4, colGap: 23, rowGap: 19 },
+  // Headers
+  currentHeader: {
+    titleX: 309,
+    titleY: 82,
+    compBoxX: 419,
+    compBoxY: 61,
+    compBoxSize: 40,
+    buttonX: 507,
+    buttonY: 67,
+  },
+  spareHeader: {
+    titleX: 319,
+    titleY: 1018,
+    compBoxX: 429,
+    compBoxY: 1018,
+    compBoxSize: 19,
+    buttonX: 507,
+    buttonY: 1011,
+  },
+  // First-card top y per portfolio
+  rowStartY: { current: 147, spare: 1066 },
+  // Footer
+  footer: { x: 268, y: 1808, width: 232, fontSize: 12 },
+} as const;
+
+/** Mobile layout — frame 375 wide, smaller 150×160 cards, 5×2 issue grid. */
+export const MOBILE = {
+  frameWidth: 375,
+  ticker: {
+    height: 35,
+    signalBoxSize: 12,
+    fontSize: 12,
+  },
+  sections: {
+    current: { y: 97, height: 775 },
+    spare: { y: 931, height: 869 },
+  },
+  // Cards: 2 columns × 4 rows. col x = 26, 200; row y = 137, 311, 485, 659.
+  card: {
+    width: 150,
+    height: 160,
+    radius: 13,
+    cols: 2,
+    rows: 4,
+    colGap: 24,
+    rowGap: 14,
+  },
+  // 5 cols × 2 rows = 10 boxes per card
+  issueGrid: { cols: 5, rows: 2 },
+  // Header title font is smaller on mobile (12 vs 16 on desktop)
+  headerTitleFontSize: 12,
+  currentHeader: {
+    titleX: 132,
+    titleY: 83,
+    compBoxX: 213,
+    compBoxY: 67,
+    compBoxSize: 30,
+    buttonX: 275,
+    buttonY: 71,
+  },
+  spareHeader: {
+    titleX: 138,
+    titleY: 1009,
+    compBoxX: 220,
+    compBoxY: 1006,
+    compBoxSize: 19,
+    buttonX: 275,
+    buttonY: 1003,
+  },
+  rowStartY: { current: 137, spare: 1065 },
+  // Edit button shrinks on mobile.
+  editButton: { width: 34, height: 26, fontSize: 12 },
+  // Footer
+  footer: { x: 95, y: 1786, width: 186, fontSize: 8 },
+  // Top ticker background — image fill in Figma; we re-create as linear-gradient.
+  // Spec from user: 180deg, #282B32 0–70%, #161921 100%.
+  tickerGradient:
+    "linear-gradient(180deg, #282B32 0%, #282B32 70%, #161921 100%)",
+} as const;

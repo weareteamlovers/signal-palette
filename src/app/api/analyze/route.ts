@@ -9,6 +9,9 @@ export const runtime = "nodejs";
 interface StockRequest {
   type: "stock";
   stockName: string;
+  /** Maximum number of issues to return. Defaults to 20 (desktop/tablet grid).
+   *  Mobile sends 10 because the card only shows a 5×2 grid. */
+  maxIssues?: number;
 }
 
 interface PortfolioRequest {
@@ -32,7 +35,11 @@ export async function POST(req: Request) {
       if (typeof body.stockName !== "string" || body.stockName.length === 0) {
         return NextResponse.json({ error: "stockName required" }, { status: 400 });
       }
-      const result = await analyzeStock(body.stockName);
+      const maxIssues =
+        typeof body.maxIssues === "number" && body.maxIssues > 0
+          ? Math.min(body.maxIssues, 20)
+          : 20;
+      const result = await analyzeStock(body.stockName, maxIssues);
       return NextResponse.json(result);
     }
 

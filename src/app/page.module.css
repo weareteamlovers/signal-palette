@@ -6,10 +6,8 @@
   position: relative;
 }
 
-/* Section gradient bands — anchored to <main> so they span the actual content
-   width (scrollbar excluded) instead of 100vw, which previously caused a tiny
-   horizontal overflow on displays wider than the 1280 frame.
-   Vertical position/height comes from SECTIONS.{current,spare} per Figma. */
+/* Section gradient bands — anchored to <main> so they span the content width
+   (scrollbar excluded). Vertical position/height varies per viewport per Figma. */
 .sectionBg {
   position: absolute;
   left: 0;
@@ -23,14 +21,25 @@
   );
 }
 
-/* Absolute-positioned frame matching Figma (1280 × 1167).
-   We center it horizontally and let it scroll vertically if the viewport is short.
-   No background here — <main> already paints the page background, and a frame
-   background would cover the full-bleed gradient bands that sit on <main>. */
-.frame {
-  position: relative;
+/* Desktop section bg positions */
+.sectionBgCurrent {
+  top: 101px;
+  height: 450px;
+}
+.sectionBgSpare {
+  top: 645px;
+  height: 540px;
 }
 
+/* Frame matches the Figma frame width × height per viewport.
+   Desktop: 1280×1167. Tablet: 768×1825. Mobile: 375×1800. */
+.frame {
+  position: relative;
+  width: 1280px;
+  height: 1167px;
+}
+
+/* Central ticker (desktop only — replaced by sticky top ticker on tablet/mobile in Stage C) */
 .central {
   position: absolute;
   left: 0;
@@ -48,4 +57,53 @@
   line-height: 16px;
   color: var(--text-primary);
   white-space: nowrap;
+  left: 477px;
+  top: 1138px;
+}
+
+/* --- Tablet (768 ≤ width < 1280) --- */
+@media (max-width: 1279px) {
+  .frame {
+    width: 768px;
+    height: 1825px;
+  }
+  .sectionBgCurrent {
+    top: 101px;
+    height: 805px;
+  }
+  .sectionBgSpare {
+    top: 944px;
+    height: 881px;
+  }
+  .central {
+    display: none;
+  }
+  .footer {
+    left: 268px;
+    top: 1808px;
+    font-size: 12px;
+    line-height: 14px;
+  }
+}
+
+/* --- Mobile (width < 768) --- */
+@media (max-width: 767px) {
+  .frame {
+    width: 375px;
+    height: 1800px;
+  }
+  .sectionBgCurrent {
+    top: 97px;
+    height: 775px;
+  }
+  .sectionBgSpare {
+    top: 931px;
+    height: 869px;
+  }
+  .footer {
+    left: 95px;
+    top: 1786px;
+    font-size: 8px;
+    line-height: 10px;
+  }
 }

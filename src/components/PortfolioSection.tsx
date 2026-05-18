@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  CARD,
-  CURRENT_HEADER,
-  PORTFOLIO_COMP_BOX,
-  SPARE_HEADER,
-} from "@/lib/design-tokens";
-import { useAnalysis } from "./AnalysisProvider";
+import { useAnalysis, type ViewportMode } from "./AnalysisProvider";
 import { ColorBox } from "./ColorBox";
 import { EditButton } from "./EditButton";
 import { StockCard } from "./StockCard";
@@ -18,34 +12,31 @@ interface Props {
   stockNames: readonly string[];
 }
 
+/** Portfolio overall comp box size per viewport / variant (Figma):
+ *    desktop/tablet  current=40, spare=19
+ *    mobile          current=30, spare=19  */
+function portfolioCompSize(
+  variant: "current" | "spare",
+  viewport: ViewportMode,
+): number {
+  if (variant === "spare") return 19;
+  return viewport === "mobile" ? 30 : 40;
+}
+
 export function PortfolioSection({ variant, label, stockNames }: Props) {
-  const isCurrent = variant === "current";
-  const header = isCurrent ? CURRENT_HEADER : SPARE_HEADER;
-  const compSize = isCurrent ? PORTFOLIO_COMP_BOX.current : PORTFOLIO_COMP_BOX.spare;
-
-  const { overalls } = useAnalysis();
+  const { overalls, viewport } = useAnalysis();
   const overallState = overalls[variant];
-
-  // Compute card grid positions (relative to the frame, absolute-positioned).
-  const cardXs = Array.from({ length: CARD.cols }, (_, i) =>
-    25 + i * (CARD.width + CARD.colGap),
-  );
-  const baseRowY = isCurrent ? 147 : 736;
-  const cardYs = [baseRowY, baseRowY + CARD.height + CARD.rowGap];
+  const compSize = portfolioCompSize(variant, viewport);
 
   return (
     <>
-      {/* Header: title + portfolio comp box + change button */}
-      <p
-        className={styles.title}
-        style={{ left: header.titleX, top: header.titleY }}
-      >
+      {/* Header — title, portfolio overall comp box, edit button.
+          Each element's absolute (left, top) varies per viewport, so positioning
+          comes from CSS that switches on data-variant + media query. */}
+      <p className={styles.title} data-variant={variant}>
         {label}
       </p>
-      <div
-        className={styles.compBox}
-        style={{ left: header.compBoxX, top: header.compBoxY }}
-      >
+      <div className={styles.compBox} data-variant={variant}>
         {overallState.status === "ready" ? (
           <ColorBox
             signal={overallState.overall.signal}
@@ -56,27 +47,17 @@ export function PortfolioSection({ variant, label, stockNames }: Props) {
           <ColorBox size={compSize} loading />
         )}
       </div>
-      <div
-        className={styles.button}
-        style={{ left: header.buttonX, top: header.buttonY }}
-      >
+      <div className={styles.button} data-variant={variant}>
         <EditButton />
       </div>
 
-      {/* 4×2 stock cards */}
-      {stockNames.map((name, i) => {
-        const col = i % CARD.cols;
-        const row = Math.floor(i / CARD.cols);
-        return (
-          <div
-            key={name}
-            className={styles.card}
-            style={{ left: cardXs[col], top: cardYs[row] }}
-          >
-            <StockCard name={name} variant={variant} />
-          </div>
-        );
-      })}
+      {/* Card grid — absolutely positioned wrapper, inside it CSS grid lays out
+          the 8 cards. Desktop: 4×2; tablet/mobile: 2×4. */}
+      <div className={styles.cardsGrid} data-variant={variant}>
+        {stockNames.map((name) => (
+          <StockCard key={name} name={name} variant={variant} />
+        ))}
+      </div>
     </>
   );
 }

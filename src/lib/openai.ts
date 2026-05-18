@@ -98,10 +98,12 @@ function normalizeOverall(raw: unknown): OverallSignal | null {
 }
 
 /** Analyze a single stock: web_search the last 7 days of KR/US market news,
- *  then return up to 20 sorted issues and a stock-level overall.
+ *  then return up to `maxIssues` sorted issues and a stock-level overall.
+ *  maxIssues = 20 on desktop/tablet (10×2 grid) and 10 on mobile (5×2 grid).
  *  Throws on OpenAI errors or unparseable responses — caller decides fallback. */
 export async function analyzeStock(
   stockName: string,
+  maxIssues = 20,
 ): Promise<{ issues: Issue[]; overall: OverallSignal }> {
   const today = new Date().toISOString().slice(0, 10);
   const prompt = `당신은 한국·미국 주식 시장 애널리스트입니다. 종목 "${stockName}"에 대해 web_search 도구로 최근 7일(${today} 기준) 뉴스/이슈를 조사하고, 결과를 아래 JSON 형식으로만 응답하세요. 코드 블록이나 다른 설명 없이 JSON 객체 하나만 출력합니다.
@@ -114,7 +116,7 @@ ${DEDUP_RULE}
 
 ${ISSUE_ORDER_RULE}
 
-이슈는 최대 20개. 중복을 합치고 남은 의미 있는 이슈만 추리세요 (적으면 적은 대로). overall은 종목 전반의 종합 판단으로, 단순 다수결이 아니라 이슈들의 중요도와 시장 맥락을 종합한 결과여야 합니다.
+이슈는 최대 ${maxIssues}개. 중복을 합치고 남은 의미 있는 이슈만 추리세요 (적으면 적은 대로). overall은 종목 전반의 종합 판단으로, 단순 다수결이 아니라 이슈들의 중요도와 시장 맥락을 종합한 결과여야 합니다.
 
 응답 형식:
 ${STOCK_SCHEMA_HINT}
@@ -142,7 +144,7 @@ ${STOCK_SCHEMA_HINT}
   const rawIssues = Array.isArray(obj.issues) ? obj.issues : [];
   const issues = sortByBucket(
     rawIssues.map(normalizeIssue).filter((x): x is Issue => x !== null),
-  ).slice(0, 20);
+  ).slice(0, maxIssues);
   const overall = normalizeOverall(obj.overall);
   if (!overall) {
     throw new Error(`GPT response for "${stockName}" missing valid overall`);

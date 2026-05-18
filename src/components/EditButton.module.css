@@ -1,7 +1,6 @@
 .btn {
-  /* From Figma 18:8 (nodes 59:18 / 64:810): 45 × 34, radius 12,
-     dark fill #444857 with light-gray text #E5E5E5, weight 600 / 16px
-     (same size as the stock name). */
+  /* Desktop / tablet: 45 × 34 with 16px text. Mobile shrinks to 34 × 26 with
+     12px text per Figma nodes 64:819 / 64:822. Color/radius/weight unchanged. */
   width: 45px;
   height: 34px;
   border-radius: 12px;
@@ -17,4 +16,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+@media (max-width: 767px) {
+  .btn {
+    width: 34px;
+    height: 26px;
+    font-size: 12px;
+  }
 }

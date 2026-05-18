@@ -1,3 +1,10 @@
+/* All header elements are absolutely positioned inside the frame.
+   Coordinates per Figma:
+   - Desktop (1280): current header bottom-align at y=97, spare vertical-center.
+   - Tablet  ( 768): current bottom-align at y=101, spare vertical-center.
+   - Mobile  ( 375): current bottom-align at y=97,  spare vertical-center,
+                     title font 12px (smaller). */
+
 .title {
   position: absolute;
   margin: 0;
@@ -8,9 +15,140 @@
   color: var(--text-primary);
   white-space: nowrap;
 }
+.title[data-variant="current"] {
+  left: 586px;
+  top: 78px;
+}
+.title[data-variant="spare"] {
+  left: 586px;
+  top: 694px;
+}
 
-.compBox,
-.button,
-.card {
+.compBox {
   position: absolute;
+}
+.compBox[data-variant="current"] {
+  left: 696px;
+  top: 57px;
+}
+.compBox[data-variant="spare"] {
+  left: 696px;
+  top: 694px;
+}
+
+.button {
+  position: absolute;
+}
+.button[data-variant="current"] {
+  left: 812px;
+  top: 63px;
+}
+.button[data-variant="spare"] {
+  left: 812px;
+  top: 687px;
+}
+
+/* Card grid wrapper. position:absolute pins it inside the frame; the inner
+   `display:grid` lays out the 8 cards into the right column count for the
+   viewport. */
+.cardsGrid {
+  position: absolute;
+  display: grid;
+  grid-template-columns: repeat(4, 290px);
+  column-gap: 23px;
+  row-gap: 38px;
+}
+.cardsGrid[data-variant="current"] {
+  left: 25px;
+  top: 147px;
+}
+.cardsGrid[data-variant="spare"] {
+  left: 25px;
+  top: 736px;
+}
+
+/* --- Tablet (768 ≤ width < 1280) --- */
+@media (max-width: 1279px) {
+  .title[data-variant="current"] {
+    left: 309px;
+    top: 82px;
+  }
+  .title[data-variant="spare"] {
+    left: 319px;
+    top: 1018px;
+  }
+  .compBox[data-variant="current"] {
+    left: 419px;
+    top: 61px;
+  }
+  .compBox[data-variant="spare"] {
+    left: 429px;
+    top: 1018px;
+  }
+  .button[data-variant="current"] {
+    left: 507px;
+    top: 67px;
+  }
+  .button[data-variant="spare"] {
+    left: 507px;
+    top: 1011px;
+  }
+  .cardsGrid {
+    grid-template-columns: repeat(2, 290px);
+    column-gap: 23px;
+    row-gap: 19px;
+  }
+  .cardsGrid[data-variant="current"] {
+    left: 82px;
+    top: 147px;
+  }
+  .cardsGrid[data-variant="spare"] {
+    left: 82px;
+    top: 1066px;
+  }
+}
+
+/* --- Mobile (width < 768) --- */
+@media (max-width: 767px) {
+  .title {
+    font-size: 12px;
+    line-height: 14px;
+  }
+  .title[data-variant="current"] {
+    left: 132px;
+    top: 83px;
+  }
+  .title[data-variant="spare"] {
+    left: 138px;
+    top: 1009px;
+  }
+  .compBox[data-variant="current"] {
+    left: 213px;
+    top: 67px;
+  }
+  .compBox[data-variant="spare"] {
+    left: 220px;
+    top: 1006px;
+  }
+  .button[data-variant="current"] {
+    left: 275px;
+    top: 71px;
+  }
+  .button[data-variant="spare"] {
+    left: 275px;
+    top: 1003px;
+  }
+  .cardsGrid {
+    grid-template-columns: repeat(2, 150px);
+    column-gap: 24px;
+    row-gap: 14px;
+  }
+  .cardsGrid[data-variant="current"] {
+    left: 26px;
+    top: 137px;
+  }
+  .cardsGrid[data-variant="spare"] {
+    left: 26px;
+    top: 1065px;
+  }
 }
