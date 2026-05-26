@@ -1,6 +1,7 @@
-/* OAuth entry point (logged-out state). Absolute positions per
-   docs/design/design-tokens.md §14-2 (verified directly against Figma nodes
-   76:117 / 76:118 / 76:119 on 2026-05-26).
+/* OAuth entry point + logged-in user header. Absolute positions per
+   docs/design/design-tokens.md §14-2 (logged out) / §14-3 (logged in),
+   verified against Figma nodes 76:117..76:119 (logged out) and
+   83:902 / 83:903 / 83:906 (logged in).
 
    Desktop only — tablet/mobile placement is a follow-up sub-task; for now we
    hide the entire block below 1280 so we don't regress the existing responsive
@@ -12,9 +13,8 @@
   pointer-events: none; /* children opt back in */
 }
 
-/* "로그인 with" label — three inline segments with different font sizes in
-   Figma. line-height: normal per segment, container line-height: 0 so the
-   block height is determined by the largest glyph. */
+/* ---------- Logged out: "로그인 with" + Google/Kakao logos (§14-2) ---------- */
+
 .label {
   position: absolute;
   left: 1191px;
@@ -47,8 +47,6 @@
   line-height: normal;
 }
 
-/* Logo buttons — rectangular image fills, no forced border-radius. The SVG
-   asset itself carries the visual shape (Kakao bubble, Google G). */
 .logoBtn {
   position: absolute;
   padding: 0;
@@ -71,14 +69,68 @@
   height: 40px;
 }
 
-/* Kakao overlaps the right portion of Google per Figma (x=1224 = Google's
-   right edge). Keep it visually on top. */
 .kakao {
   left: 1224px;
   top: 64px;
   width: 30px;
   height: 30px;
   z-index: 1;
+}
+
+/* ---------- Logged in: user identity + logout (§14-3) --------------------- */
+
+.userName {
+  position: absolute;
+  left: 1075px;
+  top: 70px;
+  margin: 0;
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 19px;
+  color: #e5e5e5;
+  white-space: nowrap;
+  pointer-events: none;
+  /* Cap the temporary email display so it doesn't push past the logout button.
+     1179 - 1075 = 104, minus 8px gap = 96px usable. */
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Center nickname (above the current-portfolio title). Per §14-3 only the
+   current variant has this; spare has no center nickname. */
+.centerName {
+  position: absolute;
+  left: 606px;
+  top: 60px;
+  margin: 0;
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 14px;
+  color: #e5e5e5;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.logoutBtn {
+  position: absolute;
+  left: 1179px;
+  top: 63px;
+  width: 75px;
+  height: 34px;
+  background: #444857;
+  color: #e5e5e5;
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1;
+  border: none;
+  border-radius: 12px;
+  padding: 0;
+  cursor: pointer;
+  pointer-events: auto;
 }
 
 @media (max-width: 1279px) {

@@ -488,13 +488,18 @@ linear-gradient(
 
 기존 헤더 (포트폴리오 라벨 + 컬러박스 + 수정 버튼) 위에 닉네임 / 로그아웃 추가.
 
-| 항목 | 위치 | 크기 | 폰트/색 |
-|---|---|---|---|
-| 중앙 닉네임 (포트폴리오 라벨 위) | x=606, y=60 | auto × 14 | Roboto SemiBold 12px, #e5e5e5 |
-| 우측 닉네임 | x=1075, y=70 | auto × 19 | Roboto SemiBold 16px, #e5e5e5 |
-| 로그아웃 버튼 | x=1179, y=63 | 75 × 34 | bg #444857, radius 12, text #e5e5e5 16px |
+> Figma MCP 로 노드 83:902 / 83:903 / 83:906 / 83:907 직접 검증 (2026-05-26).
+> 좌표 / 폰트 / 색 모두 아래 표 그대로 일치.
+
+| 항목 | Figma 노드 | 위치 | 크기 | 폰트/색 |
+|---|---|---|---|---|
+| 중앙 닉네임 (포트폴리오 라벨 위) | `83:907` | x=606, y=60 | auto × 14 | Roboto SemiBold 12px, `#e5e5e5` |
+| 우측 닉네임 | `83:906` | x=1075, y=70 | auto × 19 | Roboto SemiBold 16px, `#e5e5e5` |
+| 로그아웃 버튼 (bg) | `83:902` | x=1179, y=63 | 75 × 34 | bg `#444857`, radius 12 |
+| 로그아웃 버튼 (text) | `83:903` | x=1187, y=70 | — | Roboto SemiBold 16px, `#e5e5e5` |
 
 > 닉네임은 두 군데 표시됨 — 헤더 우측(16px) + 포트폴리오 라벨 위(12px). 두 곳 모두 동일 닉네임.
+> **4a-4**: 닉네임 모달이 4a-5 에서 도입되기 전까지 우측 닉네임 자리에 임시로 `user.email` 표시 (max-width 96px + ellipsis). 중앙 닉네임은 4a-5 부터 표시.
 
 ### 14-4. 수정 모달 (포트폴리오 편집)
 
@@ -628,14 +633,22 @@ linear-gradient(
 
 OAuth 첫 로그인 시 1회성 표시. 다른 모달과 달리 **닫기 불가** (확인 버튼만 동작).
 
-| 항목 | 위치 | 크기 | 스타일 |
-|---|---|---|---|
-| 모달 외곽 | x=485, y=122 | 309 × 200 | bg `--modal-bg-elevated` (#444857), radius 12 |
-| 가입 완료 subtitle | x=571, y=138 | 137 × 12 | Roboto Regular 12px, #e5e5e5 |
-| 메인 타이틀 | x=540, y=182 | 200 × 19 | Roboto SemiBold 19px, white — "사용할 닉네임을 입력해주세요" |
-| 닉네임 input | x=516, y=217 | 247 × 24 | bg `--input-bg` (#e5e5e5), radius 8, 12px text, placeholder "닉네임" |
-| 확인 버튼 (inline) | x=734, y=220 | **24 × 18** | bg `--btn-action-bg` (#31343f) 또는 input 안쪽 inline, 9px text |
-| 상태 메시지 영역 | x=570, y=250 | auto × 12 | Roboto Regular 10px |
+> Figma MCP 로 노드 95:388 / 95:390 / 95:392 / 95:393 / 95:395 / 95:396 /
+> 95:398 / 95:400 직접 검증 (2026-05-26). **4개 폰트 사이즈 정정**:
+> 메인 타이틀 19px → **16px**, subtitle Regular 12px → **SemiBold 10px**,
+> 확인 텍스트 9px → **8px**, input placeholder 12px → **10px**. 좌표/radius/색
+> 은 일치.
+
+| 항목 | Figma 노드 | 위치 | 크기 | 스타일 |
+|---|---|---|---|---|
+| 모달 외곽 | `95:388` | x=485, y=122 | 309 × 200 | bg `--modal-bg-elevated` (#444857), radius 12 |
+| 가입 완료 subtitle | `95:400` | x=571, y=138 | 137 × 12 | Roboto **SemiBold 10px**, color `#e5e5e5` |
+| 메인 타이틀 | `95:390` | x=540, y=182 | 200 × 19 | Roboto SemiBold **16px**, white |
+| 닉네임 input (bg) | `95:392` | x=516, y=217 | 247 × 24 | bg `--input-bg` (#e5e5e5), radius 8 |
+| 닉네임 input (text/placeholder) | `95:393` | x=541, y=224 | — | Roboto Regular **10px**, color `#31343f` |
+| 확인 버튼 (bg, inline) | `95:395` | x=734, y=220 | 24 × 18 | bg `--btn-action-bg` (#31343f), radius 8 |
+| 확인 버튼 (text) | `95:396` | x=739, y=225 | — | Roboto SemiBold **8px**, color `#e5e5e5` |
+| 상태 메시지 영역 | `95:398` | x=570, y=250 | auto × 12 | Roboto Regular 10px (색은 아래 참고) |
 
 **상태 메시지 색상**:
 - 중복 에러: `--text-error` (#e9eabc) — "이미 사용중인 닉네임이에요 ㅠ.ㅠ"

@@ -1,14 +1,62 @@
 "use client";
 
+import { createClient } from "@/lib/supabase/client";
 import styles from "./AuthHeader.module.css";
 
-/** Logged-out OAuth entry point — "로그인 with" label + Google/Kakao logos.
- *  Positions/sizes verified against Figma nodes 76:117 / 76:118 / 76:119;
- *  see docs/design/design-tokens.md §14-2.
- *
- *  4a-2: click handlers are stubs (console.log). Real Supabase signInWithOAuth
- *  wiring lands in 4a-4. */
-export function AuthHeader() {
+interface Props {
+  /** Set by the server component after `auth.getUser()`. `null` ⇒ logged out.
+   *  `nickname` is populated from `user_metadata.nickname` once 4a-5 completes;
+   *  until then it's null and we fall back to `email` in the top-right slot. */
+  user: { email: string; nickname?: string | null } | null;
+}
+
+/** Auth header. Logged-out: §14-2 "로그인 with" label + Google/Kakao buttons.
+ *  Logged-in: §14-3 user email (temporary, replaced by nickname in 4a-5) +
+ *  logout button. Supabase wiring lives here per 4a-4. */
+export function AuthHeader({ user }: Props) {
+  async function handleLogin(provider: "google" | "kakao") {
+    const supabase = createClient();
+    if (!supabase) {
+      console.warn("[auth] Supabase not configured — fill in .env.local");
+      return;
+    }
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (error) console.error("[auth] signIn", provider, error.message);
+  }
+
+  async function handleLogout() {
+    const supabase = createClient();
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    // Full reload so AnalysisProvider re-runs against the default fixture
+    // / portfolio (no per-user portfolio yet — that lands in 4a-7).
+    window.location.reload();
+  }
+
+  if (user) {
+    const topRight = user.nickname ? `${user.nickname}님` : user.email;
+    return (
+      <div className={styles.root}>
+        {user.nickname && (
+          <p className={styles.centerName}>{user.nickname}님</p>
+        )}
+        <p className={styles.userName} title={topRight}>
+          {topRight}
+        </p>
+        <button
+          type="button"
+          className={styles.logoutBtn}
+          onClick={handleLogout}
+        >
+          로그아웃
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.root}>
       <p className={styles.label}>
@@ -20,7 +68,7 @@ export function AuthHeader() {
         type="button"
         className={`${styles.logoBtn} ${styles.google}`}
         aria-label="Google 로 로그인"
-        onClick={() => console.log("TODO: oauth google")}
+        onClick={() => handleLogin("google")}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/icons/google.svg" alt="" />
@@ -29,7 +77,7 @@ export function AuthHeader() {
         type="button"
         className={`${styles.logoBtn} ${styles.kakao}`}
         aria-label="카카오로 로그인"
-        onClick={() => console.log("TODO: oauth kakao")}
+        onClick={() => handleLogin("kakao")}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/icons/kakao.svg" alt="" />
