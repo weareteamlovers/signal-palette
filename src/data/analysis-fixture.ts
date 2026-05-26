@@ -662,4 +662,19 @@ export const ANALYSIS_FIXTURE: AnalysisFixture | null = {
       "intensity": "mid"
     }
   }
+};
+
+// Step 4a-3: enrich every issue with a deterministic mock `createdAt`.
+// Base = 2026-05-26 15:00 KST (06:00 UTC). Each stock starts 4h earlier than
+// the previous; each subsequent issue within a stock is 31 min earlier than
+// the previous. Distributes ~102 issues across ~3 days, which is realistic
+// enough for the modal preview without needing per-issue hand-typed times.
+if (ANALYSIS_FIXTURE) {
+  const baseUtcMs = Date.UTC(2026, 4, 26, 6, 0, 0);
+  Object.values(ANALYSIS_FIXTURE.stocks).forEach((stock, stockIdx) => {
+    stock.issues.forEach((issue, issueIdx) => {
+      const offsetMs = (stockIdx * 240 + issueIdx * 31) * 60 * 1000;
+      issue.createdAt = new Date(baseUtcMs - offsetMs).toISOString();
+    });
+  });
 }

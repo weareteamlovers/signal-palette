@@ -36,6 +36,16 @@ export const COLORS = {
   editButtonText: "#E5E5E5",
 
   textPrimary: "#FFFFFF",
+
+  // Step 4a — Auth & Modal tokens (see design-tokens.md §14-1).
+  // Four are aliases of the hex values above; three are new.
+  modalBgElevated: "#444857", // = editButtonBg
+  dropdownBg: "#31343F", // = cardBg
+  inputBg: "#E5E5E5",
+  btnSecondaryBg: "#858A9E",
+  btnActionBg: "#31343F", // = cardBg
+  textError: "#E9EABC",
+  textSuccess: "#C6E4C7",
 } as const;
 
 export const RADIUS = {
@@ -145,7 +155,10 @@ export const SPARE_HEADER = {
 export const FOOTER = {
   text: "시그널 팔레트 © 2026 팀사랑꾼들. All rights reserved.",
   x: 477,
-  y: 1138,
+  // y=1145 verified against Figma node 18:389 / 83:899 on 2026-05-26.
+  // Earlier 1138 was a 7px-off value that left no gap between spare modal
+  // bottom (1139) and the footer; Figma intends a 6px gap.
+  y: 1145,
   fontSize: 14,
 } as const;
 

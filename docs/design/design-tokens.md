@@ -185,9 +185,14 @@ linear-gradient(
 
 | 요소 | x | y | size |
 |---|---|---|---|
-| 푸터 (`18:389`) | 477 | 1138 | 325 × 16 |
+| 푸터 (`18:389` / `83:899`) | 477 | **1145** | 325 × 16 |
 
 텍스트: `시그널 팔레트 © 2026 팀사랑꾼들. All rights reserved.`
+
+> Figma 직접 검증 (2026-05-26): 이전 표기 y=1138 은 7px off. spare 모달
+> (§14-6, bottom=1139) 와 footer 사이 의도된 6px gap 을 만들려면 footer
+> y=1145 가 맞다. `src/lib/design-tokens.ts` 와 `src/app/page.module.css`
+> 둘 다 1145 로 동기화.
 
 ---
 
@@ -454,11 +459,24 @@ linear-gradient(
 
 ### 14-2. Header — 로그인 전 (OAuth 진입점)
 
-| 항목 | 위치 | 크기 | 폰트/색 |
-|---|---|---|---|
-| "로그인 with" label | x=1191, y=43 | 47 × 19 | Roboto SemiBold 16px, #e5e5e5 |
-| Google 로고 (`76:118`) | x=1184, y=60 | 40 × 40 | round image asset |
-| Kakao 로고 (`76:117`) | x=1224, y=64 | 30 × 30 | round image asset (Google 위에 overlap) |
+> 직접 Figma MCP 로 노드 76:117 / 76:118 / 76:119 의 design_context 를
+> 재확인해 수치를 정정 (2026-05-26). "로그인 with" 라벨은 단일 폰트 사이즈가
+> 아니라 **세 segment 가 각기 다른 크기로 한 줄에 흐름** (Figma 원본 그대로).
+
+| 항목 | Figma 노드 | 위치 | 크기 | 스타일 |
+|---|---|---|---|---|
+| "로그인 with" 라벨 외곽 | `76:119` | x=1191, y=43 | 47 × 19 | (아래 3 segment 의 합) |
+| └ "로그인" segment | (76:119 내) | inline | — | Roboto **Bold 10px**, color `#FFFFFF` |
+| └ 공백 segment | (76:119 내) | inline | — | **16px** (자간용 빈 공백, 글자 없음) |
+| └ "with" segment | (76:119 내) | inline | — | Roboto **Bold 8px**, color `#FFFFFF` |
+| Google 로고 | `76:118` | x=1184, y=60 | 40 × 40 | rectangular image fill (radius 강제 X — SVG 자연 모양 그대로) |
+| Kakao 로고 | `76:117` | x=1224, y=64 | 30 × 30 | rectangular image fill (radius 강제 X — SVG 자연 모양 그대로). Google 위로 일부 overlap |
+
+> **주의**: 이전 버전 문서에 "round image asset" 이라고 표기돼 있었으나, Figma
+> 원본에서는 두 로고 모두 rectangular `image fill` 이고 별도 `cornerRadius`
+> 가 0. 둥글게 보이는 건 SVG 안의 그래픽 자체(카카오 톡 로고의 라운디드 사각형,
+> 구글 G 로고)가 둥근 모양이라 그런 것. 컨테이너에 `border-radius` 를 강제하면
+> 자산을 잘라먹게 되므로 적용 금지.
 
 **자산 보관 룰**: OAuth provider 로고는 Figma asset URL (7일 만료) 을 직접 import 하지 말 것. SVG 또는 PNG 사본을 `public/icons/google.svg` / `public/icons/kakao.svg` 에 저장하고 정적 import.
 
@@ -543,24 +561,44 @@ linear-gradient(
 
 종목 카드 클릭 시 열림. **로그인 전에도 동작**.
 
-| 항목 | 위치 | 크기 | 스타일 |
+> Figma MCP 로 두 variant 모두 재확인 (2026-05-26):
+> - **현재 포트폴리오** variant (페이지 노드 83:522) — 모달 노드 83:909..84:1002
+> - **예비 포트폴리오** variant (페이지 노드 114:402) — 모달 노드 114:788..114:827
+>
+> 두 variant 의 모달 size/내부 구조는 **완전히 동일**. 다만 모달 외곽 y 가
+> current=114 / spare=343 으로 **+229 shift**. 모든 내부 요소도 +229 (헤더,
+> 행, 연결선 전부). 아래 표는 **current variant 기준 좌표**, spare 는 y 에 +229.
+
+| 항목 | Figma 노드 (current) | 위치 | 크기 | 스타일 |
+|---|---|---|---|---|
+| 모달 외곽 | `83:909` / `114:788` | x=329, **y=114 (current) / y=343 (spare)** | 621 × 796 | bg `--modal-bg-elevated` (#444857), radius 12 |
+| "이슈 파이프라인" label | `83:912` | x=387, y=140 | 81 × 14 | Roboto SemiBold **12px**, color `#e5e5e5` |
+| 종목 컬러박스 (헤더) | `83:914` | x=349, y=140 | 32 × 32 | sharp (radius 0), 종목 overall 시그널 색 |
+| 종목명 (헤더) | `83:911` | x=387, y=155 | — | Roboto SemiBold 16px, white |
+| 차트랑 같이 보기 (bg) | `84:1001` | x=755, y=140 | 127 × 34 | bg `--btn-secondary-bg` (#858a9e), radius 12 |
+| 차트랑 같이 보기 (text) | `84:1002` | x=763, y=147 | — | Roboto SemiBold 16px, color `#e5e5e5` |
+| 닫기 (bg) | `84:999` | x=891, y=140 | 45 × 34 | bg `--btn-action-bg` (#31343f), radius 12 |
+| 닫기 (text) | `84:1000` | x=899, y=147 | — | Roboto SemiBold 16px, color `#e5e5e5` |
+
+**Positioning / 스크롤 / 정렬 룰** (2026-05-26 사용자 결정):
+- 모달은 `position: absolute` (frame 안) + `left: 329px`. 페이지 스크롤 시 모달도 함께 움직임 (Figma 정의된 frame y 에 그대로 anchor). 데스크탑 전용.
+- `overflow: visible` — chartBtn 의 "Comming Soon!" 툴팁이 모달 위쪽으로 벗어나는 게 잘리지 않게. 스크롤 clipping 은 `.timeline` 만 책임 (`overflow-y: auto`).
+- 헤더는 `flex: 0 0 65px` 로 고정 (스크롤 안 됨), **timeline 영역만 세로 스크롤**.
+- spare 모달 bottom (343 + 796 = 1139) 가 footer (§9 y=1145) 위 6px gap. Figma 의도된 spacing.
+- 모달 내 이슈 갯수 = `stock.issues.length` (카드 컬러박스 수와 동일, 데스크탑 최대 20개).
+- **모달 정렬**: `createdAt desc` (최신 first). 카드 그리드의 7-bucket 정렬과는 별개.
+- 외부 클릭 닫기: `document` 의 `mousedown` listener 가 처리 (`modalRef.contains(target)` 으로 판정 → 1280 frame 밖 click 도 close).
+- **다른 카드 클릭 시 모달 닫지 않고 내용 전환**: 카드의 `onMouseDown` 에 `stopPropagation()` 으로 document listener 발사 방지.
+
+**타임라인 (이슈 파이프라인)** — current variant 기준 좌표; spare 는 +229:
+
+| 항목 | Figma 노드 (current) | 위치 | 크기 |
 |---|---|---|---|
-| 모달 외곽 | x=329, y=114 | 621 × 796 | bg `--modal-bg-elevated` (#444857), radius 12 |
-| "이슈 파이프라인" label | x=387, y=140 | 81 × 14 | Roboto SemiBold 14px, #e5e5e5 |
-| 종목 컬러박스 (헤더) | x=349, y=140 | 32 × 32 | sharp (radius 0), 종목 overall 시그널 색 |
-| 종목명 (헤더) | x=387, y=155 | — | Roboto SemiBold 16px, white |
-| 차트랑 같이 보기 | x=755, y=140 | 127 × 34 | bg `--btn-secondary-bg` (#858a9e), radius 12, text 16px |
-| 닫기 | x=891, y=140 | 45 × 34 | bg `--btn-action-bg` (#31343f), radius 12, text 16px |
-
-**타임라인 (이슈 파이프라인)**:
-
-| 항목 | 위치 | 크기 |
-|---|---|---|
-| 이슈 컬러박스 | x=356, y=234 부터 | 19 × 19, sharp |
-| 이슈 텍스트 | x=387 | Roboto SemiBold 16px, white |
-| 이슈 timestamp | 이슈 텍스트 끝 + gap 8px | Roboto SemiBold 12px, #e5e5e5 |
-| 행 간격 | 81px (컬러박스 기준) | y=234, 315, 396, 477, 558, 639, 720, 801 |
-| 세로 연결선 | x=365, height 48 | 컬러박스 사이 (gap), stroke white 1px |
+| 이슈 컬러박스 | `84:916` 외 | x=356, y=234 부터 | 19 × 19, sharp (radius 0) |
+| 이슈 텍스트 | `84:918` 외 | x=387 | Roboto SemiBold 16px, white |
+| 이슈 timestamp | `84:928` 외 | 이슈 텍스트 끝 + gap 8px, 텍스트 **bottom-align** (`align-items: flex-end`) | Roboto SemiBold 12px, color `#e5e5e5` |
+| 행 간격 | — | 81px (컬러박스 기준) | y=234, 315, 396, ... (81 step) |
+| 세로 연결선 | `84:987` 외 | x=365 (박스 center), height 48 | **N 개 (이슈 N 개 기준)**: 첫 박스 위 1 + 박스 사이 N-1. timeline-relative top = `i × 81` (i=0..N-1). stroke white 1px |
 
 **모달 룰**:
 - 이슈는 최대 20개 시간순(최신 first) 표시. 20개 미만이면 그만큼만 표시 (placeholder 없음).

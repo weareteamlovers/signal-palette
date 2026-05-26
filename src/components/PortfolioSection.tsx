@@ -48,7 +48,9 @@ export function PortfolioSection({ variant, label, stockNames }: Props) {
         )}
       </div>
       <div className={styles.button} data-variant={variant}>
-        <EditButton />
+        {/* 4a-2: logged-out tooltip. Real login-gating + open-edit-modal wiring
+            lands in 4a-4 / 4a-6. */}
+        <EditButton tooltip="로그인 후 바로 이용 가능해요" />
       </div>
 
       {/* Card grid — absolutely positioned wrapper, inside it CSS grid lays out

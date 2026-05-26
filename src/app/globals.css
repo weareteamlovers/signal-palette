@@ -21,6 +21,16 @@
   --btn-bg: #444857;
   --btn-text: #e5e5e5;
 
+  /* Step 4a — Auth & Modal tokens (see docs/design/design-tokens.md §14-1).
+     Four are aliases of existing hex values, three are new. */
+  --modal-bg-elevated: #444857; /* 수정/종목/닉네임 모달 (= --btn-bg) */
+  --dropdown-bg: #31343f;       /* 변경 dropdown (= --bg-card) */
+  --input-bg: #e5e5e5;          /* 검색창, 닉네임 input */
+  --btn-secondary-bg: #858a9e;  /* 취소, 차트랑 같이 보기 (밝은 회색) */
+  --btn-action-bg: #31343f;     /* 완료, 닫기, 변경 (= --bg-card) */
+  --text-error: #e9eabc;        /* 닉네임 중복 에러 */
+  --text-success: #c6e4c7;      /* 닉네임 설정 완료 (2초) */
+
   --text-primary: #ffffff;
 
   /* Radii */

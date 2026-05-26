@@ -30,6 +30,17 @@
 .sectionBgSpare {
   top: 645px;
   height: 540px;
+  /* Override the shared .sectionBg gradient: spare keeps mid (dark) at 100%
+     instead of fading back to start (light). Per Figma node 114:404, the page
+     bottom should stay dark so footer sits naturally in the dark band rather
+     than on a re-brightened strip. */
+  background: linear-gradient(
+    180deg,
+    var(--bg-gradient-start) 0%,
+    var(--bg-gradient-mid) 5%,
+    var(--bg-gradient-mid) 95%,
+    var(--bg-gradient-mid) 100%
+  );
 }
 
 /* Frame matches the Figma frame width × height per viewport.
@@ -59,7 +70,9 @@
   color: var(--text-primary);
   white-space: nowrap;
   left: 477px;
-  top: 1138px;
+  /* y=1145 per Figma 18:389 (verified 2026-05-26). Earlier 1138 was off
+     by 7px; corrected so spare modal bottom (1139) sits 6px above footer. */
+  top: 1145px;
 }
 
 /* --- Tablet (768 ≤ width < 1280) --- */

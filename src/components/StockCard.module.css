@@ -10,6 +10,12 @@
   align-items: center;
   /* Stock name top at y=162 inside card top y=147 (desktop) → 15px from card top. */
   padding-top: 15px;
+  cursor: pointer;
+}
+
+.card:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
 }
 
 .header {

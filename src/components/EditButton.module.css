@@ -1,6 +1,7 @@
 .btn {
   /* Desktop / tablet: 45 × 34 with 16px text. Mobile shrinks to 34 × 26 with
      12px text per Figma nodes 64:819 / 64:822. Color/radius/weight unchanged. */
+  position: relative; /* anchor for [data-tooltip]::after */
   width: 45px;
   height: 34px;
   border-radius: 12px;
@@ -24,4 +25,25 @@
     height: 26px;
     font-size: 12px;
   }
+}
+
+/* Dark tooltip — mirrors ColorBox.module.css §100-118. Triggered only when a
+   data-tooltip attribute is set (pre-login: "로그인 후 바로 이용 가능해요"). */
+.btn[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1d24;
+  color: #ffffff;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-family: var(--font-base);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 19px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
 }

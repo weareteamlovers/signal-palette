@@ -1,0 +1,196 @@
+/* Stock detail modal — Figma §14-6, verified against nodes 83:909..84:1002
+   (current variant, y=114) and 114:788..114:827 (spare variant, y=343).
+
+   Layout decisions:
+   - position: fixed so clicks outside the 1280-wide frame still close the
+     modal (handled by a document mousedown listener in StockModal.tsx).
+   - Two-row flex column: sticky header + scrollable timeline. The timeline
+     hosts dynamic N issues (≤ 20 desktop / ≤ 10 mobile) plus N connector
+     lines (1 above first box + N-1 between adjacent pairs). */
+
+.modal {
+  /* absolute (in frame) so the modal scrolls with the page and stays anchored
+     to its Figma-defined frame y. The modal's natural top edge (114 / 343)
+     and bottom edge (910 / 1139) sit at the same pixel as in Figma, with
+     spare's bottom 6px above the footer (footer y=1145 per §9). */
+  position: absolute;
+  left: 329px;
+  width: 621px;
+  height: 796px;
+  background: var(--modal-bg-elevated);
+  border-radius: 12px;
+  /* overflow: visible so the chart-button "Comming Soon!" tooltip (which sits
+     above the header, modal-relative y≈-11) doesn't get clipped. Scroll
+     clipping is the timeline's job (see .timeline). */
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+}
+
+.modal[data-variant="current"] {
+  top: 114px;
+}
+.modal[data-variant="spare"] {
+  top: 343px;
+}
+
+/* --- Sticky header (frame y=140..174 → modal-relative 26..60; reserve 65
+       so the first connector line fits its 5px lead-in cleanly). --------- */
+
+.header {
+  position: relative;
+  flex: 0 0 65px;
+  /* No own background — let .modal's --modal-bg-elevated + border-radius show
+     through. A solid background here would draw a square over the modal's
+     top-corner radius and visually clip the 12px curve. */
+}
+
+.headerCompBox {
+  position: absolute;
+  left: 20px; /* 349 - 329 */
+  top: 26px;  /* 140 - 114 */
+}
+
+.headerLabel {
+  position: absolute;
+  left: 58px; /* 387 - 329 */
+  top: 26px;
+  margin: 0;
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 14px;
+  color: #e5e5e5;
+  white-space: nowrap;
+}
+
+.headerStockName {
+  position: absolute;
+  left: 58px;
+  top: 41px; /* 155 - 114 */
+  margin: 0;
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 19px;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.chartBtn,
+.closeBtn {
+  position: absolute;
+  top: 26px;
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1;
+  color: #e5e5e5;
+  border: none;
+  border-radius: 12px;
+  padding: 0;
+}
+
+.chartBtn {
+  left: 426px; /* 755 - 329 */
+  width: 127px;
+  height: 34px;
+  background: var(--btn-secondary-bg);
+  cursor: not-allowed;
+}
+
+.closeBtn {
+  left: 562px; /* 891 - 329 */
+  width: 45px;
+  height: 34px;
+  background: var(--btn-action-bg);
+  cursor: pointer;
+}
+
+/* Dark tooltip on chart button — mirrors ColorBox/EditButton tooltip style. */
+.chartBtn[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1d24;
+  color: #ffffff;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-family: var(--font-base);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 19px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* --- Scrollable timeline ------------------------------------------------ */
+
+.timeline {
+  position: relative;
+  flex: 1 1 auto;
+  overflow-y: auto;
+}
+
+/* Inner content sizer — gives the absolute children something to push against
+   so the scrollbar reflects the true content height. Set inline per-row count:
+   55 + (N-1)*81 + 19 + bottom padding. */
+.timelineInner {
+  position: relative;
+  width: 100%;
+}
+
+/* Vertical connector line — 1px white, 48 tall.
+   Line i (0-indexed) sits at top = i * 81 (timeline-relative).
+   Line 0 lives above box 0; line i ≥ 1 lives between box i-1 and box i. */
+.line {
+  position: absolute;
+  left: 36px; /* 365 - 329 */
+  width: 1px;
+  height: 48px;
+  background: #ffffff;
+}
+
+/* Row container — box + text + timestamp. timestamp bottom-aligns to text
+   bottom (align-items: flex-end) per user feedback on §14-6 timestamp pos. */
+.row {
+  position: absolute;
+  left: 27px; /* 356 - 329 */
+  display: flex;
+  align-items: flex-end;
+}
+
+.rowBoxWrap {
+  display: inline-flex;
+}
+
+.rowText {
+  margin-left: 12px;
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 19px;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.rowTime {
+  margin-left: 8px;
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 14px;
+  color: #e5e5e5;
+  white-space: nowrap;
+}
+
+/* Tablet/mobile: 4a-3 desktop-only. Hide entire modal below 1280. */
+@media (max-width: 1279px) {
+  .modal {
+    display: none;
+  }
+}

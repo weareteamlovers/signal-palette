@@ -1,6 +1,7 @@
 "use client";
 
 import { STOCK_COMP_BOX } from "@/lib/design-tokens";
+import { useActiveStock } from "./ActiveStockContext";
 import { useAnalysis, type ViewportMode } from "./AnalysisProvider";
 import { ColorBox } from "./ColorBox";
 import { IssueGrid } from "./IssueGrid";
@@ -25,6 +26,7 @@ function stockCompSize(variant: "current" | "spare", viewport: ViewportMode): nu
 
 export function StockCard({ name, variant }: Props) {
   const { stocks, viewport } = useAnalysis();
+  const { openStock } = useActiveStock();
   const state = stocks[name] ?? { status: "loading" };
   const compSize = stockCompSize(variant, viewport);
 
@@ -37,7 +39,22 @@ export function StockCard({ name, variant }: Props) {
   const isMobile = viewport === "mobile";
 
   return (
-    <div className={styles.card}>
+    <div
+      className={styles.card}
+      // stopPropagation on mousedown so the modal's document-level outside-click
+      // listener doesn't fire when switching cards: a different-card click should
+      // swap the modal's content, not close-then-reopen.
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={() => openStock(name, variant)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openStock(name, variant);
+        }
+      }}
+    >
       {/* Header: stock name + comprehensive color box, top-aligned and centered horizontally */}
       <div className={styles.header}>
         {isMobile ? (
