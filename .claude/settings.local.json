@@ -8,7 +8,14 @@
       "mcp__claude_ai_Figma__get_metadata",
       "mcp__claude_ai_Figma__get_design_context",
       "Bash(jq -r '.[0].text' /home/codespace/.claude/projects/-workspaces-signal-palette/9c8157b5-14b6-4c2c-a47d-54396cfc50c4/tool-results/mcp-claude_ai_Figma-get_metadata-1779083007884.txt)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(npm run *)",
+      "Bash(echo \"PID=$!\")",
+      "Bash(ps -p 34092 -o pid,cmd)",
+      "Bash(kill 34092)",
+      "Bash(kill 34116)",
+      "Bash(pkill -f \"next dev\")",
+      "Bash(kill 61878)"
     ]
   }
 }
