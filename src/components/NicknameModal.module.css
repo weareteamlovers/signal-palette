@@ -1,15 +1,16 @@
 /* Nickname modal (4a-5) — first-login one-time modal. Coordinates / fonts
    verified against Figma nodes 95:388 / 95:390 / 95:392 / 95:393 / 95:395 /
    95:396 / 95:398 / 95:400 (see docs/design/design-tokens.md §14-8).
+   Re-verified 2026-05-26 after a Figma redesign (larger modal + fonts).
 
    Per §14-9 this modal CANNOT be dismissed — ESC and outside-click are
    ignored; only the confirm button advances. No backdrop dim/blur. */
 
 .modal {
   position: absolute;
-  left: 485px;
-  top: 122px;
-  width: 309px;
+  left: 401px;
+  top: 127px;
+  width: 477px;
   height: 200px;
   background: var(--modal-bg-elevated);
   border-radius: 12px;
@@ -18,15 +19,15 @@
 
 .subtitle {
   position: absolute;
-  left: 86px; /* 571 - 485 */
-  top: 16px;  /* 138 - 122 */
-  width: 137px;
-  height: 12px;
+  left: 129px; /* 530 - 401 */
+  top: 15px;   /* 142 - 127 */
+  width: 219px;
+  height: 19px;
   margin: 0;
   font-family: var(--font-base);
   font-weight: 600;
-  font-size: 10px;
-  line-height: 12px;
+  font-size: 16px;
+  line-height: 19px;
   color: #e5e5e5;
   white-space: nowrap;
   text-align: center;
@@ -34,14 +35,14 @@
 
 .title {
   position: absolute;
-  left: 55px; /* 540 - 485 */
-  top: 60px;  /* 182 - 122 */
-  width: 200px;
+  left: 86px; /* 487 - 401 */
+  top: 54px;  /* 181 - 127 */
+  width: 305px;
   margin: 0;
   font-family: var(--font-base);
   font-weight: 600;
-  font-size: 16px;
-  line-height: 19px;
+  font-size: 24px;
+  line-height: 28px;
   color: #ffffff;
   white-space: nowrap;
   text-align: center;
@@ -49,26 +50,28 @@
 
 .inputWrap {
   position: absolute;
-  left: 31px; /* 516 - 485 */
-  top: 95px;  /* 217 - 122 */
-  width: 247px;
-  height: 24px;
+  left: 86px;  /* 487 - 401 */
+  top: 93px;   /* 220 - 127 */
+  width: 305px;
+  height: 28px;
   background: var(--input-bg);
   border-radius: 8px;
 }
 
 .input {
   position: absolute;
-  left: 25px; /* 541 - 516 */
+  left: 15px;  /* 502 - 487 */
   top: 0;
-  right: 32px; /* leave room for inline confirm button (24w + 8 right gap) */
+  /* leaves room for the inline 확인 button (input-rel left 271, width 30 →
+     ends at 301; inputWrap width 305 → 4 px right edge + 4 gap). */
+  right: 38px;
   height: 100%;
   background: transparent;
   border: none;
   outline: none;
   font-family: var(--font-base);
   font-weight: 400;
-  font-size: 10px;
+  font-size: 15px;
   color: #31343f;
 }
 
@@ -79,17 +82,17 @@
 
 .confirmBtn {
   position: absolute;
-  left: 218px; /* 734 - 516 */
-  top: 3px;   /* 220 - 217 */
-  width: 24px;
-  height: 18px;
+  left: 271px; /* 758 - 487 (input-rel) */
+  top: 4px;    /* 224 - 220 */
+  width: 30px;
+  height: 20px;
   background: var(--btn-action-bg);
   color: #e5e5e5;
   border: none;
   border-radius: 8px;
   font-family: var(--font-base);
   font-weight: 600;
-  font-size: 8px;
+  font-size: 10px;
   line-height: 1;
   cursor: pointer;
   padding: 0;
@@ -104,12 +107,12 @@
   position: absolute;
   left: 0;
   right: 0;
-  top: 128px; /* 250 - 122 */
+  top: 141px; /* 268 - 127 */
   margin: 0;
   font-family: var(--font-base);
   font-weight: 400;
-  font-size: 10px;
-  line-height: 12px;
+  font-size: 14px;
+  line-height: 16px;
   text-align: center;
 }
 

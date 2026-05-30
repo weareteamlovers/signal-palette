@@ -579,6 +579,7 @@ linear-gradient(
 - [선택] 클릭 = 해당 종목으로 슬롯 교체 + dropdown 닫힘.
 - 같은 포트폴리오 내 이미 사용 중인 종목은 후보 리스트에서 숨김 (또는 비활성 표시).
 - ESC / 외부 클릭 = dropdown 만 닫힘 (수정 모달은 유지).
+- **"비워두기" 옵션 (Figma 노드 81:494 + 129:37)**: placeholder 상태(검색어 없음) 에서만 1행 고정 표시. 일반 후보 ellipse 대신 **24×24 둥근 사각형** (`#e5e5e5`, radius **7px**, Figma 노드 129:37) 가 logo 위치(x=889)에 표시. [선택] 클릭 시 슬롯이 빈 상태("")로 됨 → §14-10 빈 슬롯 룰 적용. 검색 시작하면 사라짐 (검색 결과만 표시).
 - **위치 — x 고정, y 동적**: dropdown frame x=**882** 고정 (수정 모달 right edge 878 + 4px gap, 모달 **오른쪽 옆**에 위치). 행 i 의 변경 클릭 시 frame y = `124 + 43×i` (modal-relative top = `7 + 43×i`). spare variant 도 동일 modal-relative 좌표 (variant 분기 불필요).
 - **가로 스크롤 방지**: dropdown 자체 `overflow: hidden` + list `overflow-x: hidden`. 긴 종목명은 `text-overflow: ellipsis` 로 자름.
 - **스크롤바 디자인**: track `#31343f`, thumb + 화살표 `#e5e5e5`. Webkit 은 `::-webkit-scrollbar` 계열 + 화살표는 inline SVG 삼각형으로 색 강제, Firefox 는 `scrollbar-color` / `scrollbar-width: thin`.
@@ -638,15 +639,17 @@ linear-gradient(
 
 | 항목 | 값 |
 |---|---|
-| 라이브러리 | `@dnd-kit/core` + `@dnd-kit/sortable` |
+| 라이브러리 | `@dnd-kit/core@6.3.1` + `@dnd-kit/sortable@10.0.0` + `@dnd-kit/utilities@3.2.2` |
 | 센서 | `PointerSensor`, `activationConstraint: { distance: 4 }` |
+| Strategy | `verticalListSortingStrategy` + `closestCenter` collision |
 | 드래그 핸들 hit area | 3선 그래픽 영역 정확히 (약 20×11px) — 정밀 영역, padding 없음 |
-| Cursor | hover 시 `grab`, drag 중 `grabbing` |
-| 드래그 방식 | **행 전체가 이동**. 번호 (1~8) 는 슬롯 인덱스(`map((row, i) => i + 1)`) 로 자동 계산되어 행 위치 변경 시 자동 재할당 |
-| 드래그 중 변경 버튼 | 비활성화 (`pointer-events: none` + opacity 0.5) |
-| 시각 피드백 — 잡은 행 | opacity 0.9, 가벼운 box-shadow (예: `0 4px 12px rgba(0,0,0,0.3)`) |
-| 시각 피드백 — 다른 행들 | `transform: translateY` 로 부드럽게 양보 (transition 200ms ease) |
-| 키보드 접근성 | **4a 미지원** (후속 step) |
+| Cursor | `.handle { cursor: grab }`, `.handle:active { cursor: grabbing }` + `touch-action: none` |
+| 드래그 방식 | **행 전체가 이동**. 번호 (1~8) 는 슬롯 인덱스(`map((row, i) => i + 1)`) 로 자동 재할당. sortable id 는 `0..7` (slot 고정) — `arrayMove` 가 `pendingNames` 순서만 변경 |
+| 드래그 중 변경 버튼 | `anyDragging` 전파로 모든 행의 변경 btn `disabled` (opacity 0.5 + `pointer-events: none`) |
+| 시각 피드백 — 잡은 행 | inline style: `opacity 0.9`, `box-shadow 0 4px 12px rgba(0,0,0,0.3)`, `zIndex 10` |
+| 시각 피드백 — 다른 행들 | dnd-kit 가 자동으로 `transform: translateY` + `transition` 부여 (default 250ms ease) |
+| 키보드 접근성 | **4a 미지원** (KeyboardSensor 등록 안 함, 후속 step) |
+| 드래그 시작 시 dropdown | open 중이면 자동 close (`setOpenRow(null)`) — drag 와 시각 충돌 방지 |
 
 > **구현 메모**: dnd-kit 의 `SortableContext` + `useSortable` 표준 패턴 그대로 사용. 핸들만 드래그 활성화하려면 `useSortable` 의 `listeners` 를 핸들 요소에만 spread (행 전체가 아닌).
 
@@ -655,21 +658,21 @@ linear-gradient(
 OAuth 첫 로그인 시 1회성 표시. 다른 모달과 달리 **닫기 불가** (확인 버튼만 동작).
 
 > Figma MCP 로 노드 95:388 / 95:390 / 95:392 / 95:393 / 95:395 / 95:396 /
-> 95:398 / 95:400 직접 검증 (2026-05-26). **4개 폰트 사이즈 정정**:
-> 메인 타이틀 19px → **16px**, subtitle Regular 12px → **SemiBold 10px**,
-> 확인 텍스트 9px → **8px**, input placeholder 12px → **10px**. 좌표/radius/색
-> 은 일치.
+> 95:398 / 95:400 직접 재검증 (2026-05-26 — 사용자가 Figma 디자인 전면
+> 개편 후). **모달 width 309 → 477, 모든 폰트 size 크게 증가**. 메인
+> 타이틀 텍스트 `"사용할 닉네임을 입력해주세요"` → `"사용할 닉네임을 입력해 주세요"`
+> (띄어쓰기 추가).
 
 | 항목 | Figma 노드 | 위치 | 크기 | 스타일 |
 |---|---|---|---|---|
-| 모달 외곽 | `95:388` | x=485, y=122 | 309 × 200 | bg `--modal-bg-elevated` (#444857), radius 12 |
-| 가입 완료 subtitle | `95:400` | x=571, y=138 | 137 × 12 | Roboto **SemiBold 10px**, color `#e5e5e5` |
-| 메인 타이틀 | `95:390` | x=540, y=182 | 200 × 19 | Roboto SemiBold **16px**, white |
-| 닉네임 input (bg) | `95:392` | x=516, y=217 | 247 × 24 | bg `--input-bg` (#e5e5e5), radius 8 |
-| 닉네임 input (text/placeholder) | `95:393` | x=541, y=224 | — | Roboto Regular **10px**, color `#31343f` |
-| 확인 버튼 (bg, inline) | `95:395` | x=734, y=220 | 24 × 18 | bg `--btn-action-bg` (#31343f), radius 8 |
-| 확인 버튼 (text) | `95:396` | x=739, y=225 | — | Roboto SemiBold **8px**, color `#e5e5e5` |
-| 상태 메시지 영역 | `95:398` | x=570, y=250 | auto × 12 | Roboto Regular 10px (색은 아래 참고) |
+| 모달 외곽 | `95:388` | x=**401**, y=**127** | **477 × 200** | bg `--modal-bg-elevated` (#444857), radius 12 |
+| 가입 완료 subtitle | `95:400` | x=**530**, y=**142** | 219 × 19 | Roboto SemiBold **16px**, color `#e5e5e5`, `"시그널 팔레트 가입이 완료됐어요"` |
+| 메인 타이틀 | `95:390` | x=**487**, y=**181** | 305 × 28 | Roboto SemiBold **24px**, white, `"사용할 닉네임을 입력해 주세요"` |
+| 닉네임 input (bg) | `95:392` | x=**487**, y=**220** | **305 × 28** | bg `--input-bg` (#e5e5e5), radius 8 |
+| 닉네임 input (text/placeholder) | `95:393` | x=502, y=226 | — | Roboto Regular **15px**, color `#31343f`, placeholder `"닉네임"` |
+| 확인 버튼 (bg, inline) | `95:395` | x=**758**, y=**224** | **30 × 20** | bg `--btn-action-bg` (#31343f), radius 8 |
+| 확인 버튼 (text) | `95:396` | x=764, y=229 | — | Roboto SemiBold **10px**, color `#e5e5e5` |
+| 상태 메시지 영역 | `95:398` | x=**542**, y=**268** | 195 × 16 | Roboto Regular **14px** (색은 아래 참고) |
 
 **상태 메시지 색상**:
 - 중복 에러: `--text-error` (#e9eabc) — "이미 사용중인 닉네임이에요 ㅠ.ㅠ"

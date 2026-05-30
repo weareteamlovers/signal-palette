@@ -1,24 +1,39 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useActiveEdit } from "./ActiveEditContext";
+import { useAnalysis } from "./AnalysisProvider";
 import { StockSearchDropdown } from "./StockSearchDropdown";
 import styles from "./EditPortfolioModal.module.css";
 
-// Modal-relative row geometry per Figma §14-4. text/btn/handle share a row
-// that increments by 43px. Handle has three 1px lines stacked at y +0/+5/+10.
-const ROW_TEXT_TOP_BASE = 20;   // 137 - 117
-const ROW_BTN_TOP_BASE = 14;    // 131 - 117
-const ROW_HANDLE_TOP_BASE = 23; // 140 - 117
+// Modal-relative row geometry per Figma §14-4. Wrapper top uses the change
+// button's top (the smallest of the three); children are then positioned
+// inside the wrapper using their offset from that anchor.
+const WRAPPER_TOP_BASE = 14; // 131 - 117 (= 변경 btn top)
 const ROW_GAP = 43;
 const SEPARATOR_TOPS = [49, 92, 135, 178, 221, 264, 307]; // 7 lines
 
-interface Props {
-  /** Stock names for both portfolios — the active variant decides which one
-   *  renders. Always 8 entries (4a-7 may shrink dynamically; for now we pad). */
-  currentNames: readonly string[];
-  spareNames: readonly string[];
-}
+// Inside-wrapper offsets (children top relative to wrapper top=0).
+const NUMBER_TOP_IN_WRAPPER = 6;  // 20 - 14
+const NAME_TOP_IN_WRAPPER = 6;
+const BTN_TOP_IN_WRAPPER = 0;
+const HANDLE_TOP_IN_WRAPPER = 9; // 23 - 14
 
 function padTo8(arr: readonly string[]): string[] {
   const out = [...arr];
@@ -26,19 +41,98 @@ function padTo8(arr: readonly string[]): string[] {
   return out.slice(0, 8);
 }
 
-export function EditPortfolioModal({ currentNames, spareNames }: Props) {
-  const { activeVariant, closeEdit } = useActiveEdit();
+interface RowProps {
+  id: number;
+  index: number; // visible slot index 0..7
+  name: string;
+  anyDragging: boolean;
+  onChangeClick: () => void;
+}
+
+/** A single sortable row. Listeners attach to the handle only, so the row
+ *  body stays clickable. */
+function SortableRow({ id, index, name, anyDragging, onChangeClick }: RowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const wrapperTop = WRAPPER_TOP_BASE + index * ROW_GAP;
+  const style: React.CSSProperties = {
+    top: wrapperTop,
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.9 : 1,
+    boxShadow: isDragging ? "0 4px 12px rgba(0, 0, 0, 0.3)" : undefined,
+    zIndex: isDragging ? 10 : undefined,
+  };
+
+  return (
+    <div ref={setNodeRef} className={styles.row} style={style} {...attributes}>
+      <p className={styles.number} style={{ top: NUMBER_TOP_IN_WRAPPER }}>
+        {index + 1}
+      </p>
+      <p className={styles.stockName} style={{ top: NAME_TOP_IN_WRAPPER }}>
+        {name}
+      </p>
+      <button
+        type="button"
+        className={styles.changeBtn}
+        style={{ top: BTN_TOP_IN_WRAPPER }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={onChangeClick}
+        disabled={anyDragging}
+      >
+        변경
+      </button>
+      <div
+        className={styles.handle}
+        style={{ top: HANDLE_TOP_IN_WRAPPER }}
+        aria-label="드래그하여 순서 변경"
+        {...listeners}
+      >
+        <span className={styles.handleLine} style={{ top: 0 }} />
+        <span className={styles.handleLine} style={{ top: 5 }} />
+        <span className={styles.handleLine} style={{ top: 10 }} />
+      </div>
+    </div>
+  );
+}
+
+export function EditPortfolioModal() {
+  const { activeVariant, autoOpenRow, closeEdit } = useActiveEdit();
+  const { currentNames, spareNames, updatePortfolio } = useAnalysis();
   const modalRef = useRef<HTMLDivElement | null>(null);
-  // Which row's [변경] dropdown is open. null when no dropdown is shown.
-  // 4a-6-2 only logs the selected name; 4a-6-3 will mutate the slot.
   const [openRow, setOpenRow] = useState<number | null>(null);
+  const [pendingNames, setPendingNames] = useState<string[]>([]);
+  const [draggingId, setDraggingId] = useState<number | null>(null);
 
-  // Close any open dropdown when the modal closes / variant swaps.
+  // Pointer sensor with a 4px activation distance — prevents accidental drags
+  // when the user just clicks the handle. Keyboard sensor intentionally not
+  // registered (4a-7+ task).
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+  );
+
+  // Stable sortable ids for the 8 slots. Index works because the slot count
+  // is fixed and dnd-kit only swaps array positions, not the ids themselves.
+  const sortableIds = useMemo(() => [0, 1, 2, 3, 4, 5, 6, 7], []);
+
   useEffect(() => {
-    if (!activeVariant) setOpenRow(null);
-  }, [activeVariant]);
+    if (!activeVariant) {
+      setPendingNames([]);
+      setOpenRow(null);
+      return;
+    }
+    const source = activeVariant === "current" ? currentNames : spareNames;
+    setPendingNames(padTo8(source));
+    setOpenRow(autoOpenRow);
+  }, [activeVariant, autoOpenRow, currentNames, spareNames]);
 
-  // ESC closes (treated as 취소 per §14-4)
   useEffect(() => {
     if (!activeVariant) return;
     const onKey = (e: KeyboardEvent) => {
@@ -48,8 +142,6 @@ export function EditPortfolioModal({ currentNames, spareNames }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [activeVariant, closeEdit]);
 
-  // Outside click closes. EditButton stops mousedown propagation so clicking
-  // the OTHER variant's button transitions the modal instead of closing it.
   useEffect(() => {
     if (!activeVariant) return;
     const onDown = (e: MouseEvent) => {
@@ -61,11 +153,35 @@ export function EditPortfolioModal({ currentNames, spareNames }: Props) {
     return () => document.removeEventListener("mousedown", onDown);
   }, [activeVariant, closeEdit]);
 
+  const excludeNames = useMemo(
+    () => pendingNames.filter((n) => n !== ""),
+    [pendingNames],
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setDraggingId(event.active.id as number);
+    // Drop any open dropdown — visually awkward to drag rows under it.
+    if (openRow !== null) setOpenRow(null);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setDraggingId(null);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const from = pendingNames.findIndex(
+      (_, i) => sortableIds[i] === active.id,
+    );
+    const to = pendingNames.findIndex((_, i) => sortableIds[i] === over.id);
+    if (from < 0 || to < 0) return;
+    setPendingNames((p) => arrayMove(p, from, to));
+  };
+
   if (!activeVariant) return null;
 
-  const names = padTo8(
-    activeVariant === "current" ? currentNames : spareNames,
-  );
+  const handleConfirm = () => {
+    updatePortfolio(activeVariant, pendingNames);
+    closeEdit();
+  };
 
   return (
     <div
@@ -80,74 +196,46 @@ export function EditPortfolioModal({ currentNames, spareNames }: Props) {
         <span key={`sep-${top}`} className={styles.separator} style={{ top }} />
       ))}
 
-      {names.map((name, i) => {
-        const textTop = ROW_TEXT_TOP_BASE + i * ROW_GAP;
-        const btnTop = ROW_BTN_TOP_BASE + i * ROW_GAP;
-        const handleTop = ROW_HANDLE_TOP_BASE + i * ROW_GAP;
-        return (
-          <div key={`row-${i}`}>
-            <p className={styles.number} style={{ top: textTop }}>
-              {i + 1}
-            </p>
-            <p className={styles.stockName} style={{ top: textTop }}>
-              {name}
-            </p>
-            <button
-              type="button"
-              className={styles.changeBtn}
-              style={{ top: btnTop }}
-              // Stop mousedown so an already-open dropdown's document listener
-              // doesn't fire close-then-reopen when switching rows.
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={() => setOpenRow(i)}
-            >
-              변경
-            </button>
-            <div
-              className={styles.handle}
-              style={{ top: handleTop }}
-              aria-label="드래그하여 순서 변경"
-              // 4a-6-4 wires dnd-kit listeners here.
-            >
-              <span className={styles.handleLine} style={{ top: 0 }} />
-              <span className={styles.handleLine} style={{ top: 5 }} />
-              <span className={styles.handleLine} style={{ top: 10 }} />
-            </div>
-          </div>
-        );
-      })}
-
-      <button
-        type="button"
-        className={styles.cancelBtn}
-        onClick={closeEdit}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={() => setDraggingId(null)}
       >
+        <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
+          {pendingNames.map((name, i) => (
+            <SortableRow
+              key={sortableIds[i]}
+              id={sortableIds[i]}
+              index={i}
+              name={name}
+              anyDragging={draggingId !== null}
+              onChangeClick={() => setOpenRow(i)}
+            />
+          ))}
+        </SortableContext>
+      </DndContext>
+
+      <button type="button" className={styles.cancelBtn} onClick={closeEdit}>
         취소
       </button>
-      <button
-        type="button"
-        className={styles.confirmBtn}
-        onClick={closeEdit}
-        // 4a-6-3 swaps this for the save + analyze re-fetch path.
-      >
+      <button type="button" className={styles.confirmBtn} onClick={handleConfirm}>
         완료
       </button>
 
       {openRow !== null && (
         <StockSearchDropdown
-          excludeNames={names.filter((n) => n !== "")}
-          // spare variant: rows 4–8 (index ≥ 3) would push the dropdown past
-          // the footer (frame bottom y > 1145), so we clamp the *display*
-          // position to row 3 (index 2). The actual slot being edited is
-          // still `openRow`. Per user (2026-05-26). current variant has
-          // plenty of room below, so it's unaffected.
+          excludeNames={excludeNames}
           rowIndex={
             activeVariant === "spare" && openRow >= 3 ? 2 : openRow
           }
           onSelect={(name) => {
-            // 4a-6-3 will mutate the slot here. For now just log so the
-            // wiring is visible during manual verification.
-            console.log("[edit] select", { row: openRow, name });
+            setPendingNames((p) => {
+              const next = [...p];
+              next[openRow] = name;
+              return next;
+            });
             setOpenRow(null);
           }}
           onClose={() => setOpenRow(null)}

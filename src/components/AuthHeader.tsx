@@ -22,7 +22,21 @@ export function AuthHeader({ user }: Props) {
     }
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        // Kakao only needs profile_nickname (account_email requires business
+        // app review). Supabase's GoTrue ships a hard-coded default scope set
+        // for Kakao that includes account_email + profile_image, and
+        // `options.scopes` alone doesn't override it. `queryParams.scope`
+        // overwrites the `scope=` query param on the Kakao authorize URL,
+        // which is what Kakao actually reads.
+        ...(provider === "kakao"
+          ? {
+              scopes: "profile_nickname",
+              queryParams: { scope: "profile_nickname" },
+            }
+          : {}),
+      },
     });
     if (error) console.error("[auth] signIn", provider, error.message);
   }
@@ -37,7 +51,14 @@ export function AuthHeader({ user }: Props) {
   }
 
   if (user) {
-    const topRight = user.nickname ? `${user.nickname}님` : user.email;
+    // Priority: nickname (4a-5 or auto-seeded from provider) > email > "사용자".
+    // Kakao without 비즈앱 has no email, so an empty fallback prevents an
+    // empty label.
+    const topRight = user.nickname
+      ? `${user.nickname}님`
+      : user.email
+        ? user.email
+        : "사용자";
     return (
       <div className={styles.root}>
         {user.nickname && (

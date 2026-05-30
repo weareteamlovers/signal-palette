@@ -10,7 +10,6 @@ import styles from "./PortfolioSection.module.css";
 interface Props {
   variant: "current" | "spare";
   label: string;
-  stockNames: readonly string[];
   /** True only when a logged-in user has a nickname (4a-5+). Drives whether
    *  the [수정] button opens the edit modal or shows the login-tooltip. */
   canEdit?: boolean;
@@ -27,11 +26,12 @@ function portfolioCompSize(
   return viewport === "mobile" ? 30 : 40;
 }
 
-export function PortfolioSection({ variant, label, stockNames, canEdit = false }: Props) {
-  const { overalls, viewport } = useAnalysis();
+export function PortfolioSection({ variant, label, canEdit = false }: Props) {
+  const { overalls, viewport, currentNames, spareNames } = useAnalysis();
   const { openEdit } = useActiveEdit();
   const overallState = overalls[variant];
   const compSize = portfolioCompSize(variant, viewport);
+  const names = variant === "current" ? currentNames : spareNames;
 
   return (
     <>
@@ -48,6 +48,9 @@ export function PortfolioSection({ variant, label, stockNames, canEdit = false }
             intensity={overallState.overall.intensity}
             size={compSize}
           />
+        ) : overallState.status === "empty" ? (
+          // §14-10 all-empty portfolio → comp box uses --signal-empty
+          <ColorBox signal="empty" size={compSize} />
         ) : (
           <ColorBox size={compSize} loading />
         )}
@@ -61,10 +64,17 @@ export function PortfolioSection({ variant, label, stockNames, canEdit = false }
       </div>
 
       {/* Card grid — absolutely positioned wrapper, inside it CSS grid lays out
-          the 8 cards. Desktop: 4×2; tablet/mobile: 2×4. */}
+          the 8 cards. Desktop: 4×2; tablet/mobile: 2×4. Empty slots ("") are
+          handled by StockCard per §14-10. Key uses index so multiple empty
+          slots stay stable. */}
       <div className={styles.cardsGrid} data-variant={variant}>
-        {stockNames.map((name) => (
-          <StockCard key={name} name={name} variant={variant} />
+        {names.map((name, i) => (
+          <StockCard
+            key={`${variant}-${i}`}
+            name={name}
+            variant={variant}
+            slotIndex={i}
+          />
         ))}
       </div>
     </>

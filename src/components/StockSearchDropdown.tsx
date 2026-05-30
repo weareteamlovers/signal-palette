@@ -43,15 +43,16 @@ export function StockSearchDropdown({ excludeNames, rowIndex, onSelect, onClose 
   const [query, setQuery] = useState("");
   const ref = useRef<HTMLDivElement | null>(null);
 
-  // Client-side includes() filter. Korean input only; English search arrives
-  // in Step 4e with the real API integration.
+  // Client-side includes() filter. Case-insensitive so English tickers /
+  // brand names (AMD, ibm, …) match regardless of casing. Korean is already
+  // case-insensitive at the codepoint level.
   const candidates = useMemo(() => {
     const used = new Set(excludeNames);
-    const q = query.trim();
+    const q = query.trim().toLowerCase();
     return STOCK_MASTER.filter((name) => {
       if (used.has(name)) return false;
       if (!q) return true;
-      return name.includes(q);
+      return name.toLowerCase().includes(q);
     });
   }, [query, excludeNames]);
 
@@ -101,13 +102,42 @@ export function StockSearchDropdown({ excludeNames, rowIndex, onSelect, onClose 
       </div>
 
       <ul className={styles.list}>
+        {/* Special "비워두기" row — Figma §14-5 (placeholder-state only).
+            Lets the user clear a slot. Logo intentionally omitted (Figma
+            node 81:493 was removed in the 비워두기 variant). Hidden once
+            the user starts typing in the search input. */}
+        {query.trim() === "" && (
+          <li
+            className={styles.row}
+            onClick={() => onSelect("")}
+            role="option"
+            aria-selected="false"
+          >
+            <span className={styles.rowLogoEmpty} aria-hidden="true" />
+            <p className={styles.rowName}>비워두기</p>
+            <button
+              type="button"
+              className={styles.selectBtn}
+              onClick={() => onSelect("")}
+            >
+              선택
+            </button>
+          </li>
+        )}
+
         {candidates.length === 0 ? (
           <li>
             <p className={styles.empty}>검색 결과가 없어요</p>
           </li>
         ) : (
           candidates.map((name) => (
-            <li key={name} className={styles.row}>
+            <li
+              key={name}
+              className={styles.row}
+              onClick={() => onSelect(name)}
+              role="option"
+              aria-selected="false"
+            >
               <span className={styles.rowLogo} aria-hidden="true" />
               <p className={styles.rowName}>{name}</p>
               <button

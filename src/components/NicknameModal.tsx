@@ -1,15 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import styles from "./NicknameModal.module.css";
 
 interface Props {
-  /** Initial nickname (rare — only if a previous save partially succeeded). */
-  initial?: string;
-  /** Fired once after a successful save + 2s success-message display. The
-   *  parent removes the modal in response. 4a-6 will additionally open the
-   *  edit-portfolio modal here. */
+  /** Fired once after a successful save + 2s success-message display. */
   onComplete: (nickname: string) => void;
 }
 
@@ -33,13 +29,32 @@ function validate(nickname: string): string | null {
   return null;
 }
 
-export function NicknameModal({ initial = "", onComplete }: Props) {
-  const [value, setValue] = useState(initial);
+export function NicknameModal({ onComplete }: Props) {
+  const [value, setValue] = useState("");
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [submitting, setSubmitting] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // After an error, click on [확인] leaves focus on the button, so Ctrl/Cmd+A
+  // would select the whole page. Re-focus the input so the shortcut behaves
+  // like a normal text field (select input contents only).
+  useEffect(() => {
+    if (status.kind === "error") {
+      inputRef.current?.focus();
+    }
+  }, [status]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (status.kind === "error") setStatus({ kind: "idle" });
+    setValue(e.target.value);
+  };
 
   const handleSubmit = useCallback(async () => {
     const trimmed = value.trim();
+    if (!trimmed) {
+      setStatus({ kind: "error", msg: "아무것도 입력되지 않았어요!" });
+      return;
+    }
     const localErr = validate(trimmed);
     if (localErr) {
       setStatus({ kind: "error", msg: localErr });
@@ -49,13 +64,27 @@ export function NicknameModal({ initial = "", onComplete }: Props) {
     setSubmitting(true);
     setStatus({ kind: "idle" });
 
-    // Mock duplicate check (always passes per CLAUDE.md 4a-5). Real DB
-    // uniqueness check arrives in 4a-7 via the `profiles` table.
-    // 의도된 에러 메시지 색은 #e9eabc — "이미 사용중인 닉네임이에요 ㅠ.ㅠ".
+    // Real duplicate check against every Supabase user's user_metadata.nickname
+    // (admin-only endpoint). 4a-7 replaces this with a profiles table + UNIQUE
+    // constraint and lets us include the user's own id in the exclude list.
+    try {
+      const dupRes = await fetch("/api/check-nickname", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nickname: trimmed }),
+      });
+      const dup = (await dupRes.json()) as { available?: boolean };
+      if (!dup.available) {
+        setStatus({ kind: "error", msg: "이미 사용중인 닉네임이에요 ㅠ.ㅠ" });
+        setSubmitting(false);
+        return;
+      }
+    } catch (err) {
+      console.warn("[nickname] dup check failed, proceeding optimistically", err);
+    }
 
     const supabase = createClient();
     if (!supabase) {
-      // Env missing — surface as success so the dev UI is still walkable.
       console.warn("[nickname] supabase env missing; skipping save");
     } else {
       const { error } = await supabase.auth.updateUser({
@@ -70,14 +99,10 @@ export function NicknameModal({ initial = "", onComplete }: Props) {
     }
 
     setStatus({ kind: "success", msg: "닉네임 설정이 완료됐어요" });
-
-    // Hold the success message for 2s, then hand off to the parent.
     window.setTimeout(() => onComplete(trimmed), SUCCESS_HOLD_MS);
   }, [value, onComplete]);
 
-  // ESC must be ignored per §14-9 (this modal is non-dismissible). We don't
-  // attach an ESC listener at all — but if a sibling modal added one, this
-  // also covers Enter as a confirm shortcut.
+  // Enter shortcut. ESC is intentionally ignored per §14-9 (non-dismissible).
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Enter" && !submitting && status.kind !== "success") {
@@ -104,18 +129,16 @@ export function NicknameModal({ initial = "", onComplete }: Props) {
       aria-label="닉네임 설정"
     >
       <p className={styles.subtitle}>시그널 팔레트 가입이 완료됐어요</p>
-      <p className={styles.title}>사용할 닉네임을 입력해주세요</p>
+      <p className={styles.title}>사용할 닉네임을 입력해 주세요</p>
 
       <div className={styles.inputWrap}>
         <input
+          ref={inputRef}
           className={styles.input}
           type="text"
           placeholder="닉네임"
           value={value}
-          onChange={(e) => {
-            setValue(e.target.value);
-            if (status.kind === "error") setStatus({ kind: "idle" });
-          }}
+          onChange={handleChange}
           maxLength={16}
           disabled={submitting || status.kind === "success"}
           autoFocus

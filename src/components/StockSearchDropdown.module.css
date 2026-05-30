@@ -125,6 +125,7 @@
 .row {
   position: relative;
   height: 31px;
+  cursor: pointer;
 }
 
 .rowLogo {
@@ -135,6 +136,18 @@
   height: 24px;
   border-radius: 50%;
   background: #ffffff;
+}
+
+/* "비워두기" row uses a rounded RECTANGLE placeholder instead of a circle
+   (Figma node 129:37: 24×24, #e5e5e5, radius 7px). Same x as .rowLogo. */
+.rowLogoEmpty {
+  position: absolute;
+  left: 7px;
+  top: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: #e5e5e5;
 }
 
 .rowName {

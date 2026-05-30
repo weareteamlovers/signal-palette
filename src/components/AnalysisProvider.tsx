@@ -25,7 +25,10 @@ type StockState =
 
 type OverallState =
   | { status: "loading" }
-  | { status: "ready"; overall: OverallSignal; source: "live" | "mock" | "fixture" };
+  | { status: "ready"; overall: OverallSignal; source: "live" | "mock" | "fixture" }
+  /** All slots in the portfolio are empty (name=""), so there's nothing to
+   *  fetch. PortfolioSection renders the comp box with --signal-empty. */
+  | { status: "empty" };
 
 type Variant = "current" | "spare";
 
@@ -36,6 +39,14 @@ interface AnalysisValue {
   overalls: Record<Variant, OverallState>;
   viewport: ViewportMode;
   isMobile: boolean;
+  /** Current names for each portfolio (8 slots, empty slot = ""). Mutated
+   *  by `updatePortfolio` after an edit-modal save. */
+  currentNames: readonly string[];
+  spareNames: readonly string[];
+  /** Apply an edit-modal save: diffs added/removed stocks, fetches only the
+   *  added ones, resets the portfolio overall so it re-fires once the new
+   *  ready set settles. Empty slots ("") are skipped (no fetch). */
+  updatePortfolio: (variant: Variant, newNames: readonly string[]) => void;
 }
 
 const AnalysisContext = createContext<AnalysisValue>({
@@ -46,6 +57,9 @@ const AnalysisContext = createContext<AnalysisValue>({
   },
   viewport: "desktop",
   isMobile: false,
+  currentNames: [],
+  spareNames: [],
+  updatePortfolio: () => {},
 });
 
 interface ProviderProps {
@@ -66,7 +80,9 @@ const DESKTOP_MAX_ISSUES = 20;
 
 function makeLoading(names: readonly string[]): Record<string, StockState> {
   const m: Record<string, StockState> = {};
-  for (const n of names) m[n] = { status: "loading" };
+  for (const n of names) {
+    if (n !== "") m[n] = { status: "loading" };
+  }
   return m;
 }
 
@@ -90,12 +106,27 @@ function shuffle<T>(arr: T[]): T[] {
  *                          overalls). When everything settles, the provider
  *                          dumps a fixture-shaped JSON blob to the console
  *                          so the result can be promoted to a fixture.
+ *
+ * 4a-6-3: portfolio names are now mutable. `updatePortfolio` performs an
+ * incremental diff — only newly added stocks fetch; removed stocks drop
+ * out; unchanged stocks keep their state. Empty slots ("") never hit the
+ * network. The portfolio overall resets and re-fires once the new ready
+ * set is complete.
  */
 export function AnalysisProvider({ current, spare, children }: ProviderProps) {
-  const allNames = useMemo(() => [...current, ...spare], [current, spare]);
-
   const [viewport, setViewport] = useState<ViewportMode>("desktop");
   const isMobile = viewport === "mobile";
+
+  // Names are state, not props, so edit-modal saves don't tear down the
+  // entire stocks dictionary via the initial-load effect.
+  const [currentNames, setCurrentNames] = useState<readonly string[]>(current);
+  const [spareNames, setSpareNames] = useState<readonly string[]>(spare);
+
+  const allNames = useMemo(
+    () => [...currentNames, ...spareNames].filter((n) => n !== ""),
+    [currentNames, spareNames],
+  );
+
   const [stocks, setStocks] = useState<Record<string, StockState>>(() =>
     makeLoading(allNames),
   );
@@ -108,7 +139,6 @@ export function AnalysisProvider({ current, spare, children }: ProviderProps) {
     current: false,
     spare: false,
   });
-  // Capture helper: only print the dump once per fetch cycle.
   const captureLoggedRef = useRef(false);
 
   useEffect(() => {
@@ -169,9 +199,74 @@ export function AnalysisProvider({ current, spare, children }: ProviderProps) {
     [],
   );
 
-  // Fetch / fixture-reveal cycle. Re-runs whenever isMobile flips so the
-  // maxIssues cap (and the slice of fixture data we expose) follows the
-  // viewport.
+  /** Fetch a single stock (real mode) and merge into `stocks`. Empty-slot
+   *  names are filtered by the caller. */
+  const fetchOneReal = useCallback(
+    (name: string, maxIssues: number, signal: AbortSignal) => {
+      fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "stock", stockName: name, maxIssues }),
+        signal,
+      })
+        .then(async (r) => {
+          const data = (await r.json()) as
+            | { issues: Stock["issues"]; overall: OverallSignal }
+            | { error: string };
+          if (!r.ok || "error" in data) {
+            throw new Error("error" in data ? data.error : `HTTP ${r.status}`);
+          }
+          const stock: Stock = { name, issues: data.issues, overall: data.overall };
+          setStocks((s) => ({
+            ...s,
+            [name]: { status: "ready", stock, source: "live" },
+          }));
+        })
+        .catch((err) => {
+          if ((err as Error).name === "AbortError") return;
+          console.warn(`[analyze] "${name}" failed, falling back to mock`, err);
+          const full = getMockStock(name);
+          const mock: Stock = { ...full, issues: full.issues.slice(0, maxIssues) };
+          setStocks((s) => ({
+            ...s,
+            [name]: { status: "ready", stock: mock, source: "mock" },
+          }));
+        });
+    },
+    [],
+  );
+
+  /** Fixture-mode single-stock reveal — same shape as fetchOneReal but
+   *  pulls from ANALYSIS_FIXTURE, no network. Used by `updatePortfolio`
+   *  for incremental adds so we don't restart the whole stagger cycle. */
+  const revealOneFixture = useCallback(
+    (name: string, maxIssues: number) => {
+      const f = ANALYSIS_FIXTURE?.stocks[name];
+      if (f) {
+        const stock: Stock = {
+          name,
+          issues: f.issues.slice(0, maxIssues),
+          overall: f.overall,
+        };
+        setStocks((s) => ({
+          ...s,
+          [name]: { status: "ready", stock, source: "fixture" },
+        }));
+      } else {
+        const mock = getMockStock(name);
+        const stock: Stock = { ...mock, issues: mock.issues.slice(0, maxIssues) };
+        setStocks((s) => ({
+          ...s,
+          [name]: { status: "ready", stock, source: "mock" },
+        }));
+      }
+    },
+    [],
+  );
+
+  // Initial load (and re-load whenever the viewport tier flips between
+  // mobile and non-mobile so the maxIssues cap is respected). NOT re-run
+  // when names change — those are handled incrementally by `updatePortfolio`.
   useEffect(() => {
     const aborter = new AbortController();
     const maxIssues = isMobile ? MOBILE_MAX_ISSUES : DESKTOP_MAX_ISSUES;
@@ -184,7 +279,6 @@ export function AnalysisProvider({ current, spare, children }: ProviderProps) {
     overallDispatched.current = { current: false, spare: false };
     captureLoggedRef.current = false;
 
-    // --- Fixture mode: fake 3s hold, then random stagger reveal ---
     if (USE_FIXTURE) {
       const timeouts: ReturnType<typeof setTimeout>[] = [];
       const order = shuffle([...allNames]);
@@ -192,25 +286,7 @@ export function AnalysisProvider({ current, spare, children }: ProviderProps) {
         order.forEach((name, idx) => {
           const t = setTimeout(() => {
             if (aborter.signal.aborted) return;
-            const f = ANALYSIS_FIXTURE?.stocks[name];
-            if (f) {
-              const stock: Stock = {
-                name,
-                issues: f.issues.slice(0, maxIssues),
-                overall: f.overall,
-              };
-              setStocks((s) => ({
-                ...s,
-                [name]: { status: "ready", stock, source: "fixture" },
-              }));
-            } else {
-              const mock = getMockStock(name);
-              const stock: Stock = { ...mock, issues: mock.issues.slice(0, maxIssues) };
-              setStocks((s) => ({
-                ...s,
-                [name]: { status: "ready", stock, source: "mock" },
-              }));
-            }
+            revealOneFixture(name, maxIssues);
           }, idx * FIXTURE_STAGGER_MS);
           timeouts.push(t);
         });
@@ -222,53 +298,99 @@ export function AnalysisProvider({ current, spare, children }: ProviderProps) {
       };
     }
 
-    // --- Real mode: parallel fetch every stock ---
     for (const name of allNames) {
-      fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "stock", stockName: name, maxIssues }),
-        signal: aborter.signal,
-      })
-        .then(async (r) => {
-          const data = (await r.json()) as
-            | { issues: Stock["issues"]; overall: OverallSignal }
-            | { error: string };
-          if (!r.ok || "error" in data) {
-            throw new Error("error" in data ? data.error : `HTTP ${r.status}`);
-          }
-          const stock: Stock = { name, issues: data.issues, overall: data.overall };
-          setStocks((s) => ({ ...s, [name]: { status: "ready", stock, source: "live" } }));
-        })
-        .catch((err) => {
-          if ((err as Error).name === "AbortError") return;
-          console.warn(`[analyze] "${name}" failed, falling back to mock`, err);
-          const full = getMockStock(name);
-          const mock: Stock = { ...full, issues: full.issues.slice(0, maxIssues) };
-          setStocks((s) => ({
-            ...s,
-            [name]: { status: "ready", stock: mock, source: "mock" },
-          }));
-        });
+      fetchOneReal(name, maxIssues, aborter.signal);
     }
 
     return () => aborter.abort();
-  }, [isMobile, allNames]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile]);
 
-  // Once every per-stock state is ready, fire each portfolio's overall.
-  // - Fixture mode: pull the overall straight from ANALYSIS_FIXTURE (no fetch).
-  // - Real mode: send the 8-stock summary to /api/analyze.
+  /** Edit-modal save. Diff-applies the new name list for one portfolio:
+   *  - added (in newNames, not in current set) → seed loading + fetch
+   *  - removed (in current set, not in newNames) → drop from stocks
+   *  - unchanged → leave intact
+   *  Then reset that portfolio's overall so the next-effect re-fires it
+   *  once the post-edit ready set is settled. */
+  const updatePortfolio = useCallback(
+    (variant: Variant, newNames: readonly string[]) => {
+      const maxIssues = isMobile ? MOBILE_MAX_ISSUES : DESKTOP_MAX_ISSUES;
+      const oldNames = variant === "current" ? currentNames : spareNames;
+      const otherNames = variant === "current" ? spareNames : currentNames;
+
+      const oldSet = new Set(oldNames.filter((n) => n !== ""));
+      const newSet = new Set(newNames.filter((n) => n !== ""));
+      // A removed stock that still appears in the OTHER portfolio must stay
+      // in `stocks` (current ↔ spare overlap is allowed per CLAUDE.md §14-4).
+      const otherSet = new Set(otherNames.filter((n) => n !== ""));
+
+      const removed = [...oldSet].filter(
+        (n) => !newSet.has(n) && !otherSet.has(n),
+      );
+      const added = [...newSet].filter((n) => !oldSet.has(n));
+
+      setStocks((s) => {
+        const next = { ...s };
+        for (const n of removed) delete next[n];
+        for (const n of added) {
+          if (!next[n]) next[n] = { status: "loading" };
+        }
+        return next;
+      });
+
+      if (variant === "current") setCurrentNames(newNames);
+      else setSpareNames(newNames);
+
+      // Reset overall so the next effect re-fires it for this variant.
+      setOveralls((o) => ({ ...o, [variant]: { status: "loading" } }));
+      overallDispatched.current[variant] = false;
+
+      // Fetch / reveal added stocks. Fixture mode does it immediately (no
+      // stagger — only 1–8 new at most). Real mode fires parallel requests.
+      if (added.length > 0) {
+        if (USE_FIXTURE) {
+          for (const n of added) revealOneFixture(n, maxIssues);
+        } else {
+          const aborter = new AbortController();
+          for (const n of added) fetchOneReal(n, maxIssues, aborter.signal);
+          // Note: this aborter is intentionally never aborted from outside.
+          // Mid-flight cancellation on subsequent edits would orphan
+          // promises; we accept the cheap leak of letting them resolve.
+        }
+      }
+    },
+    [
+      currentNames,
+      spareNames,
+      isMobile,
+      fetchOneReal,
+      revealOneFixture,
+    ],
+  );
+
+  // Portfolio overall — fires once per variant when every non-empty slot
+  // is ready. Empty slots are skipped per CLAUDE.md 4a-6-3 ("빈 슬롯은
+  // analyze 호출 없음"). All-empty → status="empty" with no fetch.
   useEffect(() => {
     const aborter = new AbortController();
     (["current", "spare"] as const).forEach((variant) => {
       if (overallDispatched.current[variant]) return;
-      const names = variant === "current" ? current : spare;
+      const names = variant === "current" ? currentNames : spareNames;
+      const filled = names.filter((n) => n !== "");
+
+      if (filled.length === 0) {
+        overallDispatched.current[variant] = true;
+        setOveralls((s) => ({ ...s, [variant]: { status: "empty" } }));
+        return;
+      }
+
       const ready: Stock[] = [];
-      for (const n of names) {
+      for (const n of filled) {
         const s = stocks[n];
         if (!s || s.status !== "ready") return;
         ready.push(s.stock);
       }
+
       if (USE_FIXTURE) {
         overallDispatched.current[variant] = true;
         const o = ANALYSIS_FIXTURE?.overalls[variant];
@@ -287,11 +409,9 @@ export function AnalysisProvider({ current, spare, children }: ProviderProps) {
       runOverallReal(variant, ready, aborter.signal);
     });
     return () => aborter.abort();
-  }, [stocks, current, spare, runOverallReal]);
+  }, [stocks, currentNames, spareNames, runOverallReal]);
 
-  // Capture helper: when real mode finishes everything, print a fixture-
-  // shaped JSON to the console so the result can be pasted into
-  // src/data/analysis-fixture.ts.
+  // Fixture-capture (real mode only) — unchanged from prior behavior.
   useEffect(() => {
     if (USE_FIXTURE) return;
     if (captureLoggedRef.current) return;
@@ -320,8 +440,24 @@ export function AnalysisProvider({ current, spare, children }: ProviderProps) {
   }, [stocks, overalls, allNames]);
 
   const value = useMemo<AnalysisValue>(
-    () => ({ stocks, overalls, viewport, isMobile }),
-    [stocks, overalls, viewport, isMobile],
+    () => ({
+      stocks,
+      overalls,
+      viewport,
+      isMobile,
+      currentNames,
+      spareNames,
+      updatePortfolio,
+    }),
+    [
+      stocks,
+      overalls,
+      viewport,
+      isMobile,
+      currentNames,
+      spareNames,
+      updatePortfolio,
+    ],
   );
 
   return <AnalysisContext.Provider value={value}>{children}</AnalysisContext.Provider>;
