@@ -505,17 +505,25 @@ linear-gradient(
 
 수정 버튼 클릭 시 열림. 두 포트폴리오 동일 UI (현재 ↔ 예비 모달 분리, 다만 디자인은 동일).
 
-| 항목 | 위치 | 크기 | 스타일 |
-|---|---|---|---|
-| 모달 외곽 | x=401, y=117 | 477 × 407 | bg `--modal-bg-elevated` (#444857), radius 12 |
-| 행 separator (Line 1~7) | x=415, width=450 | 0 (line) | y=166, 209, 252, 295, 338, 381, 424 (간격 43px) |
-| 행 영역 | y=131~461 | 행당 43px | 8행 고정 |
-| 번호 (1~8) | 행마다 x=420 | 10 × 19 | Roboto SemiBold 16px, white |
-| 종목명 (편집 가능) | 행마다 x=445 | auto × 19 | Roboto SemiBold 16px, white |
-| 변경 버튼 | 행마다 x=792 | 38 × 29 | bg `--btn-action-bg` (#31343f), radius 8, text 15px |
-| 드래그 핸들 (≡) | 행마다 x=841 | 20 × 11 | 3선 (y +0/+5/+10), stroke white 1px |
-| 취소 버튼 | x=772, y=480 | 45 × 34 | bg `--btn-secondary-bg` (#858a9e), radius 12, text 16px |
-| 완료 버튼 | x=824, y=480 | 45 × 34 | bg `--btn-action-bg` (#31343f), radius 12, text 16px |
+> Figma MCP 로 노드 77:389 / 78:391 / 78:402 / 78:405 / 78:407 / 78:433 /
+> 78:434 / 78:436 / 78:439 직접 검증 (2026-05-26). **2개 정정**:
+> 변경 버튼 radius 8 → **12**, text 15px → **13px**. 나머지 좌표/색/폰트
+> 일치.
+
+| 항목 | Figma 노드 | 위치 | 크기 | 스타일 |
+|---|---|---|---|---|
+| 모달 외곽 | `77:389` | x=401, y=117 | 477 × 407 | bg `--modal-bg-elevated` (#444857), radius 12 |
+| 행 separator (Line 1~7) | `78:391` 외 | x=415, width=450 | 0 (line, 1px white) | y=166, 209, 252, 295, 338, 381, 424 (간격 43px) |
+| 행 영역 | — | y=131~461 | 행당 43px | 8행 고정 |
+| 번호 (1~8) | `78:407` 외 | 행마다 x=420 | 10 × 19 | Roboto SemiBold 16px, white |
+| 종목명 (편집 가능) | `78:405` 외 | 행마다 x=445 | auto × 19 | Roboto SemiBold 16px, white |
+| 변경 버튼 (bg) | `78:433` 외 | 행마다 x=792 | 38 × 29 | bg `--btn-action-bg` (#31343f), radius **12** |
+| 변경 버튼 (text) | `78:434` 외 | 행마다 x=799 | 24 × 15 | Roboto SemiBold **13px**, color `#e5e5e5` |
+| 드래그 핸들 (≡) | `78:439` 외 | 행마다 x=841 | 20 × 11 | 3선 (y +0/+5/+10), stroke white 1px |
+| 취소 버튼 (bg) | `78:436` | x=772, y=480 | 45 × 34 | bg `--btn-secondary-bg` (#858a9e), radius 12 |
+| 취소 버튼 (text) | `78:437` | x=780, y=487 | — | Roboto SemiBold 16px, color `#e5e5e5` (추정 — 다른 footer 버튼과 동일 패턴) |
+| 완료 버튼 (bg) | `78:402` | x=824, y=480 | 45 × 34 | bg `--btn-action-bg` (#31343f), radius 12 |
+| 완료 버튼 (text) | `78:403` | x=832, y=487 | — | Roboto SemiBold 16px, color `#e5e5e5` (추정) |
 
 **행 내부 y 좌표** (텍스트/버튼/핸들 모두 동일 행에 정렬):
 
@@ -544,16 +552,26 @@ linear-gradient(
 
 **위치**: 어느 행의 변경을 눌러도 **x=511, y=151 고정**. 이유는 뒤에 수정 모달이 펼쳐져 있어 위치 안정성 확보.
 
-| 항목 | 위치 | 크기 | 스타일 |
-|---|---|---|---|
-| 외곽 박스 | x=511, y=151 | 257 × 197 | bg `--dropdown-bg` (#31343f), radius 12 |
-| 검색 입력 외곽 | x=516, y=156 | 247 × 24 | bg `--input-bg` (#e5e5e5), radius 8 |
-| 🔍 아이콘 | x=521, y=161 | 15 × 15 | Lucide `Search` 또는 SVG icon |
-| 검색 placeholder | x=541, y=163 | — | Roboto Regular 12px, #6b7280 (회색) |
-| 후보 행 간격 | y=188 부터 | 행당 27 | 최대 6행 표시, 그 이상은 세로 스크롤 |
-| 후보 로고 placeholder | 행마다 x=519 | 20 × 20 (원) | round, bg white (종목 로고 미구현 시 빈 원) |
-| 후보 이름 | 행마다 x=546 | — | Roboto SemiBold 15px, white |
-| [선택] 버튼 | 행마다 x=734 | 29 × 20 | bg `--input-bg` (#e5e5e5), radius 10, text 11px |
+> Figma MCP 로 노드 81:478 / 81:480 / 81:481 / 81:491 / 81:493 / 81:494 /
+> 81:496 / 81:497 직접 재검증 (2026-05-26 — 1차 검증 후 사용자가 Figma 에서
+> 폰트/버튼 크기를 키워 외곽까지 커진 상태). **변경된 값**: 외곽 박스
+> 257×197 → 260×292 (x 511→510, y 151→149, height 글자 키우면서 8행 표시),
+> input height 24→28, placeholder 10→13px, 후보 로고 20×20→24×24 (x 519→517,
+> y 188→192), 후보 이름 13→15px (y 191→195), [선택] bg 29×20→35×24
+> (x 734→728, y 188→192, radius 10→12), [선택] text 9→12px (x 740→734,
+> y 192→197), 행 간격 27→31.
+
+| 항목 | Figma 노드 | 위치 | 크기 | 스타일 |
+|---|---|---|---|---|
+| 외곽 박스 | `81:478` | x=**882**, y=**124 + 43×i** (행 i 클릭 시, x 고정) | **266 × 292** | bg `--dropdown-bg` (#31343f), radius 12 |
+| 검색 입력 외곽 | `81:480` | x=888, y=130 | **254** × 28 | bg `--input-bg` (#e5e5e5), radius 8 |
+| 🔍 아이콘 | `81:491` | x=893, y=137 | 15 × 15 | image asset (SVG search icon) |
+| 검색 placeholder | `81:481` | x=913, y=137 | — | Roboto Regular 13px, color `#31343f`, text `"종목명을 입력해주세요"` |
+| 후보 행 간격 | — | y=167 부터 | 행당 31 | 디자인은 8행 표시, 그 이상은 세로 스크롤 |
+| 후보 로고 placeholder | `81:493` 외 | 행마다 x=889 | 24 × 24 (원) | image asset (round, 빈 원) |
+| 후보 이름 | `81:494` 외 | 행마다 x=918 | auto × 18 | Roboto SemiBold 15px, color `#e5e5e5`. 긴 이름은 `mask-image` linear-gradient 로 `--dropdown-bg` 색에 fade-out |
+| [선택] 버튼 (bg) | `81:496` 외 | 행마다 x=**1100** | 35 × 24 | bg `--input-bg` (#e5e5e5), radius 12. dropdown 우측 여백 **13px** (스크롤바 10 + 3 gap) |
+| [선택] 버튼 (text) | `81:497` 외 | 행마다 x=1106 | — | Roboto SemiBold 12px, color `#31343f` |
 
 **dropdown 룰**:
 - 검색은 클라이언트 사이드 includes() 필터 (Step 4a 는 fixture 만 사용 — `src/data/stock-master.ts` 의 정적 16~30개 종목 리스트).
@@ -561,6 +579,9 @@ linear-gradient(
 - [선택] 클릭 = 해당 종목으로 슬롯 교체 + dropdown 닫힘.
 - 같은 포트폴리오 내 이미 사용 중인 종목은 후보 리스트에서 숨김 (또는 비활성 표시).
 - ESC / 외부 클릭 = dropdown 만 닫힘 (수정 모달은 유지).
+- **위치 — x 고정, y 동적**: dropdown frame x=**882** 고정 (수정 모달 right edge 878 + 4px gap, 모달 **오른쪽 옆**에 위치). 행 i 의 변경 클릭 시 frame y = `124 + 43×i` (modal-relative top = `7 + 43×i`). spare variant 도 동일 modal-relative 좌표 (variant 분기 불필요).
+- **가로 스크롤 방지**: dropdown 자체 `overflow: hidden` + list `overflow-x: hidden`. 긴 종목명은 `text-overflow: ellipsis` 로 자름.
+- **스크롤바 디자인**: track `#31343f`, thumb + 화살표 `#e5e5e5`. Webkit 은 `::-webkit-scrollbar` 계열 + 화살표는 inline SVG 삼각형으로 색 강제, Firefox 는 `scrollbar-color` / `scrollbar-width: thin`.
 
 ### 14-6. 종목 카드 모달 (이슈 파이프라인)
 

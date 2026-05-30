@@ -14,6 +14,10 @@ export function EditButton({ onClick, tooltip }: Props) {
     <button
       type="button"
       className={styles.btn}
+      // Stop mousedown so EditPortfolioModal's document outside-click listener
+      // doesn't fire — clicking the other variant's button transitions the
+      // modal's content instead of closing it.
+      onMouseDown={(e) => e.stopPropagation()}
       onClick={onClick}
       data-tooltip={tooltip}
     >

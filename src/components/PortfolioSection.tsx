@@ -1,5 +1,6 @@
 "use client";
 
+import { useActiveEdit } from "./ActiveEditContext";
 import { useAnalysis, type ViewportMode } from "./AnalysisProvider";
 import { ColorBox } from "./ColorBox";
 import { EditButton } from "./EditButton";
@@ -10,6 +11,9 @@ interface Props {
   variant: "current" | "spare";
   label: string;
   stockNames: readonly string[];
+  /** True only when a logged-in user has a nickname (4a-5+). Drives whether
+   *  the [수정] button opens the edit modal or shows the login-tooltip. */
+  canEdit?: boolean;
 }
 
 /** Portfolio overall comp box size per viewport / variant (Figma):
@@ -23,8 +27,9 @@ function portfolioCompSize(
   return viewport === "mobile" ? 30 : 40;
 }
 
-export function PortfolioSection({ variant, label, stockNames }: Props) {
+export function PortfolioSection({ variant, label, stockNames, canEdit = false }: Props) {
   const { overalls, viewport } = useAnalysis();
+  const { openEdit } = useActiveEdit();
   const overallState = overalls[variant];
   const compSize = portfolioCompSize(variant, viewport);
 
@@ -48,9 +53,11 @@ export function PortfolioSection({ variant, label, stockNames }: Props) {
         )}
       </div>
       <div className={styles.button} data-variant={variant}>
-        {/* 4a-2: logged-out tooltip. Real login-gating + open-edit-modal wiring
-            lands in 4a-4 / 4a-6. */}
-        <EditButton tooltip="로그인 후 바로 이용 가능해요" />
+        {canEdit ? (
+          <EditButton onClick={() => openEdit(variant)} />
+        ) : (
+          <EditButton tooltip="로그인 후 바로 이용 가능해요" />
+        )}
       </div>
 
       {/* Card grid — absolutely positioned wrapper, inside it CSS grid lays out

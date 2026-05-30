@@ -1,0 +1,194 @@
+/* Stock search dropdown (4a-6-2). Opens above the edit modal when a [변경]
+   button is clicked. Coordinates / fonts verified against Figma §14-5
+   (nodes 81:478 / 81:480 / 81:481 / 81:491 / 81:493 / 81:494 / 81:496 /
+   81:497) on 2026-05-26.
+
+   The dropdown is rendered as a child of EditPortfolioModal with `top`
+   set inline per row: row i → modal-relative top = 32 + 43*i (frame
+   y = 149 + 43*i). left stays at 109 (frame x=510). */
+
+.dropdown {
+  position: absolute;
+  /* Per user (2026-05-26): the dropdown sits to the RIGHT of the edit modal
+     (modal right edge x=878, dropdown frame x=882 = 4px gap). modal-rel left
+     = 882 - 401 = 481. x stays fixed; only top moves per row (inline). */
+  left: 481px;
+  /* top set inline by the parent based on which row's [변경] was clicked. */
+  width: 266px;
+  height: 292px;
+  background: var(--dropdown-bg);
+  border-radius: 12px;
+  /* Clip both axes so the horizontal scrollbar can't appear from long
+     candidate names; the list's overflow-y: auto handles the vertical
+     scroll inside. */
+  overflow: hidden;
+  z-index: 110;
+}
+
+/* ---------- Search input row (Figma y=156, height 28) ---------- */
+
+.search {
+  position: absolute;
+  left: 6px; /* 888 - 882 */
+  top: 6px;  /* 130 - 124 */
+  width: 254px;
+  height: 28px;
+  background: var(--input-bg);
+  border-radius: 8px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 5px; /* 893 - 888 (search-relative) */
+  top: 7px;  /* 137 - 130 */
+  width: 15px;
+  height: 15px;
+  color: #31343f;
+  pointer-events: none;
+}
+
+.input {
+  position: absolute;
+  left: 25px; /* 541 - 516 */
+  top: 0;
+  right: 5px;
+  height: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--font-base);
+  font-weight: 400;
+  font-size: 13px;
+  color: #31343f;
+}
+
+.input::placeholder {
+  color: #31343f;
+  opacity: 1;
+}
+
+/* ---------- Candidate list (Figma y=192 onward, row gap 31) ------- */
+
+.list {
+  position: absolute;
+  left: 0;
+  top: 43px; /* 192 - 149 */
+  width: 100%;
+  height: calc(100% - 43px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Firefox + spec scrollbar styling (thumb track). */
+  scrollbar-color: #e5e5e5 #31343f;
+  scrollbar-width: thin;
+}
+
+/* Webkit-based browsers (Chrome/Edge/Safari) — fine-grained control. */
+.list::-webkit-scrollbar {
+  width: 10px;
+}
+.list::-webkit-scrollbar-track {
+  background: #31343f;
+}
+.list::-webkit-scrollbar-thumb {
+  background: #e5e5e5;
+  border-radius: 5px;
+}
+/* Up/down arrow buttons. CSS can't change the OS-default arrow color, so
+   we hide it and draw an SVG triangle in the requested color. */
+.list::-webkit-scrollbar-button {
+  background: #31343f;
+  height: 10px;
+  width: 10px;
+  display: block;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+.list::-webkit-scrollbar-button:vertical:start {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><polygon points='5,3 8,7 2,7' fill='%23e5e5e5'/></svg>");
+}
+.list::-webkit-scrollbar-button:vertical:end {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><polygon points='5,7 8,3 2,3' fill='%23e5e5e5'/></svg>");
+}
+/* Suppress the doubled buttons Webkit shows by default. */
+.list::-webkit-scrollbar-button:vertical:start:decrement,
+.list::-webkit-scrollbar-button:vertical:end:increment {
+  display: block;
+}
+.list::-webkit-scrollbar-button:vertical:start:increment,
+.list::-webkit-scrollbar-button:vertical:end:decrement {
+  display: none;
+}
+
+.row {
+  position: relative;
+  height: 31px;
+}
+
+.rowLogo {
+  position: absolute;
+  left: 7px; /* 517 - 510 */
+  top: 0;    /* row-relative — frame y=192 = row top */
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.rowName {
+  position: absolute;
+  left: 36px; /* 918 - 882 */
+  /* right reaches the selectBtn's left edge (dropdown w 266 - selectBtn left
+     218 = 48). Truncation is done with a mask-image fade (per user request:
+     "배경색상으로 그라데이션 되며 잘리도록") instead of text-overflow ellipsis,
+     so long names dissolve into the #31343f dropdown background. */
+  right: 48px;
+  top: 3px; /* 170 - 167 */
+  margin: 0;
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 18px;
+  color: #e5e5e5;
+  white-space: nowrap;
+  overflow: hidden;
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+  -webkit-mask-image: linear-gradient(
+    to right,
+    #000 calc(100% - 24px),
+    transparent
+  );
+}
+
+.selectBtn {
+  position: absolute;
+  left: 218px; /* 728 - 510 */
+  top: 0;       /* 192 - 192 */
+  width: 35px;
+  height: 24px;
+  background: var(--input-bg);
+  color: #31343f;
+  border: none;
+  border-radius: 12px;
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.empty {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 24px;
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-base);
+  font-weight: 400;
+  font-size: 13px;
+  color: #858a9e;
+}

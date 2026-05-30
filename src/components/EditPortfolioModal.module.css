@@ -1,0 +1,137 @@
+/* Edit portfolio modal (4a-6-1) — static UI only. Coordinates / fonts
+   verified against Figma nodes 77:389 / 78:391–78:439 (see docs/design/
+   design-tokens.md §14-4).
+
+   Layout: 8 rows (number + stock name + change btn + drag handle) with 7
+   separators in between, plus 취소/완료 footer. Modal is absolute (inside
+   the frame) so it scrolls with the page — same pattern as StockModal. */
+
+.modal {
+  position: absolute;
+  left: 401px;
+  width: 477px;
+  height: 407px;
+  background: var(--modal-bg-elevated);
+  border-radius: 12px;
+  z-index: 100;
+}
+
+/* current variant: per Figma node 77:389 (y=117). */
+.modal[data-variant="current"] {
+  top: 117px;
+}
+
+/* spare variant: no Figma node exists for the spare edit modal. Per user
+   (2026-05-26), align the modal top with the midpoint between the spare
+   [수정] button bottom (y=687+34=721) and the spare-cards row-1 top (y=736)
+   → midpoint y=728.5 → 729. Modal bottom = 729+407 = 1136 (9px above footer
+   at y=1145). */
+.modal[data-variant="spare"] {
+  top: 729px;
+}
+
+/* --- Row separators (7 lines, 1px white, between the 8 rows) ------------ */
+
+.separator {
+  position: absolute;
+  left: 14px; /* 415 - 401 */
+  width: 450px;
+  height: 1px;
+  background: #ffffff;
+}
+
+/* --- Row elements — absolute, top set inline per row -------------------- */
+
+.number {
+  position: absolute;
+  left: 19px; /* 420 - 401 */
+  margin: 0;
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 19px;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.stockName {
+  position: absolute;
+  left: 44px; /* 445 - 401 */
+  margin: 0;
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 19px;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.changeBtn {
+  position: absolute;
+  left: 391px; /* 792 - 401 */
+  width: 38px;
+  height: 29px;
+  background: var(--btn-action-bg);
+  color: #e5e5e5;
+  border: none;
+  border-radius: 12px;
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* Drag handle: three 1px white lines stacked at y=0/5/10 relative to handle */
+.handle {
+  position: absolute;
+  left: 440px; /* 841 - 401 */
+  width: 20px;
+  height: 11px;
+  cursor: grab;
+}
+
+.handleLine {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: #ffffff;
+}
+
+/* --- Footer buttons ----------------------------------------------------- */
+
+.cancelBtn,
+.confirmBtn {
+  position: absolute;
+  top: 363px; /* 480 - 117 */
+  width: 45px;
+  height: 34px;
+  border: none;
+  border-radius: 12px;
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1;
+  color: #e5e5e5;
+  cursor: pointer;
+  padding: 0;
+}
+
+.cancelBtn {
+  left: 371px; /* 772 - 401 */
+  background: var(--btn-secondary-bg);
+}
+
+.confirmBtn {
+  left: 423px; /* 824 - 401 */
+  background: var(--btn-action-bg);
+}
+
+/* Tablet/mobile: 4a-6 desktop-only. */
+@media (max-width: 1279px) {
+  .modal {
+    display: none;
+  }
+}
