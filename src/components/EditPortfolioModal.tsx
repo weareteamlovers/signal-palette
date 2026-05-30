@@ -29,9 +29,13 @@ const WRAPPER_TOP_BASE = 14; // 131 - 117 (= 변경 btn top)
 const ROW_GAP = 43;
 const SEPARATOR_TOPS = [49, 92, 135, 178, 221, 264, 307]; // 7 lines
 
+// Slot numbers (1–8) are rendered OUTSIDE the SortableRow at fixed modal-
+// relative positions, so the number stays put while a row is being dragged
+// (per user request 2026-05-26). y = 20 + i*43 matches Figma §14-4 text y.
+const NUMBER_TOP_BASE = 20; // 137 - 117
+
 // Inside-wrapper offsets (children top relative to wrapper top=0).
-const NUMBER_TOP_IN_WRAPPER = 6;  // 20 - 14
-const NAME_TOP_IN_WRAPPER = 6;
+const NAME_TOP_IN_WRAPPER = 6;  // 20 - 14
 const BTN_TOP_IN_WRAPPER = 0;
 const HANDLE_TOP_IN_WRAPPER = 9; // 23 - 14
 
@@ -73,9 +77,6 @@ function SortableRow({ id, index, name, anyDragging, onChangeClick }: RowProps) 
 
   return (
     <div ref={setNodeRef} className={styles.row} style={style} {...attributes}>
-      <p className={styles.number} style={{ top: NUMBER_TOP_IN_WRAPPER }}>
-        {index + 1}
-      </p>
       <p className={styles.stockName} style={{ top: NAME_TOP_IN_WRAPPER }}>
         {name}
       </p>
@@ -194,6 +195,18 @@ export function EditPortfolioModal() {
     >
       {SEPARATOR_TOPS.map((top) => (
         <span key={`sep-${top}`} className={styles.separator} style={{ top }} />
+      ))}
+
+      {/* Slot numbers — fixed at each row's anchor so they don't move when
+          the user drags a row. The number labels the SLOT, not the stock. */}
+      {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+        <p
+          key={`num-${i}`}
+          className={styles.number}
+          style={{ top: NUMBER_TOP_BASE + i * ROW_GAP }}
+        >
+          {i + 1}
+        </p>
       ))}
 
       <DndContext
