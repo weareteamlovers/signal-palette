@@ -86,7 +86,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - **Framework**: Next.js 16 (App Router) + React 19 + TypeScript
 - **Styling**: 순수 CSS Modules + CSS variables (Tailwind 사용 안 함)
 - **Fonts**: Roboto → Pretendard → Noto Sans KR (이 순서로 fallback)
-- **AI**: OpenAI Responses API + `web_search` tool, 모델 `gpt-4o` (Step 3에서 추가)
+- **AI**: OpenAI Responses API + `web_search` tool, 모델 `gpt-4o-mini` (Step 3 에서 `gpt-4o` 로 추가 → Step 4b 에서 `gpt-4o-mini` 로 전환)
 - **Auth/DB**: Supabase (서울 리전) + `@supabase/ssr` (Step 4a 부터)
 - **Drag & Drop**: `@dnd-kit/core` + `@dnd-kit/sortable` (Step 4a 의 포트폴리오 수정 모달)
 - **개발 환경**: GitHub Codespaces, Figma MCP (유료 구독)
@@ -125,7 +125,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 |---|---|
 | 시장 범위 | 한국 + 미국 혼합 |
 | API 호출 위치 | 백엔드 (Next.js API route, `OPENAI_API_KEY` 서버에서만) |
-| 이슈 검색 방식 | OpenAI Responses API + `web_search` tool, 모델 `gpt-4o` |
+| 이슈 검색 방식 | OpenAI Responses API + `web_search` tool, 모델 `gpt-4o-mini` (4b 전환). 최근 7일 이내 + 해소된 이슈 제외 (프롬프트 + 서버 `filterRecent`/`dedupeIssues` 안전망) |
 | 분석 호출 분할 | 종목당 1회 (×16, 클라이언트에서 병렬 fetch) + 포트폴리오 overall 1회 (×2, 해당 포트폴리오의 8종목 완료 후 자동 dispatch) = 호출 약 18회 / 페이지 로드 |
 | 분석 호출 시점 | 페이지 첫 로드 시 클라이언트가 자동 fetch. 캐싱 없음 (새로고침 = 재호출). 추후 Step 4에서 캐싱 예정 |
 | 진행 상태 UX | 카드는 즉시 placeholder + shimmer로 렌더, 응답 도착 종목부터 좌상→우하 staggered fade-in으로 채워짐 (50ms 간격, 박스당 0.2s) |
@@ -140,7 +140,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 | 시그널 컬러 | 아래 "Color tokens" 참고. positive/negative 각 3단계 + neutral 1단계 + empty = 8 |
 | 종합 박스 크기 | 현재 포트폴리오와 예비 포트폴리오 의도적으로 다름 (현재=강조, 예비=축소) |
 | 반응형 breakpoint | `<768` mobile, `768–1279` tablet, `≥1280` desktop. CSS 미디어 쿼리 + `AnalysisProvider`의 `viewport` state 양쪽에 동기화 |
-| 모바일 재분석 | viewport가 mobile 경계를 진입/이탈할 때마다 16종목 + 2 overall 자동 재 fetch. mobile은 `maxIssues=10`, 그 외 20 |
+| 모바일 이슈 트림 (4b 변경) | ~~viewport flip 시 재 fetch~~ **폐기**. 분석은 마운트 시 1회만 (`FETCH_MAX_ISSUES=20`), viewport 전환 시 **재분석 안 함**. 모바일은 렌더 시점에 `topByImportance(issues, 10)` 로 importance 상위 10개만 표시 (버킷 순서 유지). 카드 그리드(`StockCard`) + 모바일 ticker(`TopTicker`) 공통. 헬퍼는 `src/lib/issues.ts` |
 | 모바일 종목명 처리 | 카드 폭 150에서 종목명이 overflow하면 우→좌 marquee (`StockNameMarquee`, 50px/s + 0.6s 시작 대기). 짧으면 정적 |
 | 터치 툴팁 | 터치 입력(`pointerType === "touch"`)에서 컬러박스 탭 = 3초 툴팁 표시. 같은 박스 재탭 = 닫기, 다른 박스 탭 = 즉시 전환. 마우스 hover는 기존 그대로 |
 
@@ -308,7 +308,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - **Step 1**: ✅ 프로젝트 init + 디자인 토큰 + 정적 레이아웃 (mock 이슈 데이터 사용)
 - **Step 2**: ✅ 중앙 이슈 ticker — 현재→예비 모든 이슈를 종목 순서대로 순회, 3초 머무름 + 상→하 페이드 슬라이드(0.4s), 호버 시 `scale(1.05)` + 자동 전환 일시정지, `ActiveIssueContext`로 현재 이슈를 IssueGrid에 발행해 4px `#FFFFFF` outline 트레이서 표시, 컬러박스 hover 시 다크 툴팁(`#1a1d24`). 모든 수치는 `docs/design/design-tokens.md` §10 참고.
 - **Step 3**: ✅ `/api/analyze` route + `lib/openai.ts` (gpt-4o + `web_search`). `AnalysisProvider`(client)가 종목 16개를 병렬 fetch, 각 카드는 shimmer 후 staggered fade-in으로 채워지고, 한 포트폴리오 8종목 완료 시 portfolio-overall 호출이 자동 dispatch됨. 실패 시 종목 단위 mock fallback. GPT가 7-bucket 순서로 응답하지만 서버에서 `sortByBucket`로 보강. 이슈 텍스트는 한국어 강제 + 중복 통합 prompt. 모든 수치/룰은 `docs/design/design-tokens.md` §11 참고.
-- **반응형**: ✅ 세 breakpoint(<768 mobile / 768–1279 tablet / ≥1280 desktop). `AnalysisProvider`가 viewport tier를 노출하고, 모바일 경계 진입/이탈 시 16종목 + 2 포트폴리오 overall을 `maxIssues`(모바일 10 / 그 외 20)로 재 fetch. 태블릿/모바일은 화면 상단에 sticky `TopTicker`(그라데이션 35px bar)가 데스크탑의 중앙 ticker를 대체. 모바일 카드는 150×160 + radius 13 + 5×2 그리드, 긴 종목명은 `StockNameMarquee`로 50px/s 우→좌 슬라이딩. 터치 디바이스에서는 컬러박스 탭 시 `ActiveTooltipContext`가 3초간 툴팁 표시(같은 박스 재탭 = 닫기, 다른 박스 탭 = 전환). 모든 수치는 `docs/design/design-tokens.md` §12 (Tablet) / §13 (Mobile) 참고.
+- **반응형**: ✅ 세 breakpoint(<768 mobile / 768–1279 tablet / ≥1280 desktop). `AnalysisProvider`가 viewport tier를 노출. **(4b 변경)** 분석은 마운트 시 1회만(`FETCH_MAX_ISSUES=20`), viewport 경계 진입/이탈 시 **재 fetch 안 함** — 모바일은 `topByImportance(issues,10)` 로 렌더 시점에 importance 상위 10개만 표시. 태블릿/모바일은 화면 상단에 sticky `TopTicker`(그라데이션 35px bar)가 데스크탑의 중앙 ticker를 대체. 모바일 카드는 150×160 + radius 13 + 5×2 그리드, 긴 종목명은 `StockNameMarquee`로 50px/s 우→좌 슬라이딩. 터치 디바이스에서는 컬러박스 탭 시 `ActiveTooltipContext`가 3초간 툴팁 표시(같은 박스 재탭 = 닫기, 다른 박스 탭 = 전환). 모든 수치는 `docs/design/design-tokens.md` §12 (Tablet) / §13 (Mobile) 참고.
 - **Step 4a ✅ (2026-05-26)**: 인증 (Google + Kakao OAuth) + 닉네임 + 사용자별 포트폴리오 편집/저장 (수정/검색/이슈/온보딩 모달, 드래그 정렬, DB 영속화). 종목 검색은 fixture (실제 API 는 4e), 그 외는 모두 실 동작. Supabase 서울 리전 + `@supabase/ssr` + profiles/portfolios 테이블 (RLS) + `check_nickname` RPC. 8개 sub-task (4a-1 ~ 4a-8) 모두 완료. 자세한 내역은 아래 "Step 4a sub-tasks" 섹션 참고.
   - **4a-1 ✅ (2026-05-26)**: §14-1 의 7개 컬러 토큰을 `src/app/globals.css` `:root` 와 `src/lib/design-tokens.ts` `COLORS` 양쪽에 추가 (기존 hex alias 4개 + 신규 3개: `--btn-secondary-bg #858a9e` / `--text-error #e9eabc` / `--text-success #c6e4c7`). `Stock` 타입에 `isEmpty?: boolean` 옵셔널 필드 추가 (§14-10 빈 슬롯용 — 아직 사용처 없음). `npm run build` 통과, 카드 그리드 시각 변화 없음.
   - **4a-2 ✅ (2026-05-26)**: 로그인 전 OAuth 진입 헤더 추가. 신규 `AuthHeader` 컴포넌트가 §14-2 픽셀 좌표대로 "로그인 with" 라벨 + Google(40×40, x=1184/y=60) + Kakao(30×30, x=1224/y=64) 로고를 absolute 로 렌더, `<1280` 에서는 `display: none` (Tablet/Mobile 회귀 0). 로고는 `public/icons/{google,kakao}.svg` 정적 import. 클릭 핸들러는 `console.log('TODO: oauth google|kakao')` stub — 실 Supabase 연동은 4a-4. `EditButton` 에 `tooltip?: string` 옵셔널 prop 추가 + ColorBox 와 동일한 다크 툴팁(`#1a1d24`/16px SemiBold) `:hover::after` CSS 미러. `PortfolioSection` 의 두 EditButton 에 `tooltip="로그인 후 바로 이용 가능해요"` 전달 (현재 항상 로그인 전 상태). 작업 후 사용자 지적으로 §14-2 문서값(폰트 SemiBold 16px / 로고 round) 이 부정확함이 밝혀져 Figma MCP 로 노드 76:117/76:118/76:119 재검증 → "로그인" Bold 10px + 공백 16px + "with" Bold 8px (3-segment) + 로고는 rectangular fill 로 정정.
@@ -336,6 +336,10 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
       - **다른 카드 클릭 시 전환**: `StockCard` 의 `onMouseDown` 에 `stopPropagation()` → document listener 가 발사 안되어 close 안 됨, 카드 onClick 의 `openStock(name, variant)` 로 모달 내용/위치 전환.
     - timestamp 포맷팅(`YY.MM.DD 오전/오후 H:MM`)은 `useEffect` 안 mount 후 — SSR 시점엔 "-" 출력. ESC/외부클릭/[닫기] 닫힘. Tablet/Mobile 은 `display: none` (4a-3 데스크탑 전용, tablet/mobile 모달은 별도 step). 시그널 컬러는 기존 토큰 유지(`#9fe8c5` 등), Figma `#9ee8ae` 와 다름은 별건. `npm run build` ✅, dev SSR `HTTP 200`.
 - **Step 4b ✅ (2026-05-31)**: 데이터 레이어 확장. 모델 `gpt-4o` → **`gpt-4o-mini`** (analyzeStock + analyzePortfolioOverall 둘 다, `lib/openai.ts`). `Issue` 타입에 3개 옵셔널 필드 추가 (`src/types/index.ts`): `createdAt?: string` (이미 4a 옵셔널, 이제 live 도 채움), `importance?: number` (종목당 unique 1..N, 1=최중요), `source?: { name: string; url?: string }`. GPT 프롬프트/스키마(`FIELD_RULE` + `STOCK_SCHEMA_HINT`)가 세 필드를 요청. 서버 정규화: `normalizeCreatedAt` (`Date.parse` 실패 시 drop → 모달 "-"), `normalizeSource` (name 필수, url 옵셔널), `normalizeIssue` 가 importance raw 보존 후 `assignUniqueImportance(issues)` 가 slice 이후 kept set 에 대해 raw asc 기준 unique 1..N 재랭킹 (GPT 중복/누락 방어). **정렬은 변화 없음** (사용자 결정): 카드 그리드 7-bucket + GPT 순서, 모달 createdAt desc 그대로. importance 는 Step 4d (모바일 Top-10/pop scoring) 대비 데이터로만 보관. `source` 는 데이터만 — §14-6 모달에 출처 요소 없어 미표시 (실제 출처 표시는 4c 뉴스 어댑터). **fixture 보강**: `analysis-fixture.ts` 의 enrich IIFE 가 ~102개 이슈에 mock `importance`(issueIdx+1) + `source`(8개 매체 풀 순환 + `news.example.com` placeholder url) 추가 → fixture 모드에서도 새 필드 검증 가능. 캡처 dump 는 `s.stock.issues` 를 그대로 직렬화하므로 자동으로 새 필드 포함. UI 컴포넌트 변경 없음 (StockModal createdAt 이미 연결). `npm run build` ✅.
+    - **4b 후속 (2026-05-31 사용자 피드백 3건)**:
+      1. **모바일 재분석 폐기 → importance top-10 트림**: viewport flip 시 전체 재 fetch 하던 동작 제거. `AnalysisProvider` 초기 useEffect dep `[isMobile]` → `[]` (마운트 1회), fetch 는 항상 `FETCH_MAX_ISSUES=20`. 모바일은 `src/lib/issues.ts` 의 `topByImportance(issues, 10)` 로 렌더 시 트림 (버킷 순서 유지, importance 없으면 head-slice fallback). `StockCard` 카드 그리드 + `TopTicker` 공통 적용. `updatePortfolio` 도 maxIssues 항상 20.
+      2. **recency 강화**: 프롬프트가 `최근 ${RECENCY_DAYS}일(${sevenDaysAgo} ~ ${today})` 명시 + `RECENCY_RULE`/`RESOLVED_RULE` (해소·종결된 이슈 제외). 서버 `filterRecent(issues, now)` 가 createdAt 이 7+1일 보다 오래된 이슈를 drop (무날짜/파싱불가는 유지 — 판단 불가).
+      3. **dedup 서버 안전망 신설**: 기존엔 프롬프트뿐 → GPT 가 같은 이슈 5개씩 반환. `dedupeIssues` 가 정규화 텍스트 완전일치 + `source.url` 일치 + char-bigram Jaccard ≥ 0.6 (`DUP_SIMILARITY`) 를 모두 중복으로 처리, 첫 등장만 유지. 파이프라인 순서: normalize → `filterRecent` → `dedupeIssues` → `sortByBucket` → slice → `assignUniqueImportance`. `npm run build` ✅, dedup/recency/top-importance 로직 단위 검증 완료.
 - **Step 4c (Planned)**: 뉴스 어댑터 (Naver / Finnhub / Yahoo / Google RSS) + `pg_cron` + Supabase Realtime.
 - **Step 4d (Planned)**: 모바일 Top-10 필터 + `createdAt` 기반 pop scoring.
 - **Step 4e (Planned, 신설)**: 종목 검색 API (한글 → Naver 자동완성, 영문 → Finnhub `/search` 라우팅 + KRX 정적 fallback). 4a 의 fixture 를 실제 API 로 교체.

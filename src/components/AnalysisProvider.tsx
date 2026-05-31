@@ -80,8 +80,9 @@ const LABELS: Record<Variant, string> = {
 
 const MOBILE_MQ = "(max-width: 767px)";
 const TABLET_MQ = "(min-width: 768px) and (max-width: 1279px)";
-const MOBILE_MAX_ISSUES = 10;
-const DESKTOP_MAX_ISSUES = 20;
+// Always fetch the full set (once). Mobile trims to the top-N by importance at
+// render time (topByImportance) rather than re-analyzing on a viewport resize.
+const FETCH_MAX_ISSUES = 20;
 
 function makeLoading(names: readonly string[]): Record<string, StockState> {
   const m: Record<string, StockState> = {};
@@ -269,12 +270,12 @@ export function AnalysisProvider({ current, spare, userId, children }: ProviderP
     [],
   );
 
-  // Initial load (and re-load whenever the viewport tier flips between
-  // mobile and non-mobile so the maxIssues cap is respected). NOT re-run
-  // when names change — those are handled incrementally by `updatePortfolio`.
+  // Initial load — runs once on mount. NOT re-run when the viewport flips
+  // (mobile trims at render via topByImportance) nor when names change (those
+  // are handled incrementally by `updatePortfolio`).
   useEffect(() => {
     const aborter = new AbortController();
-    const maxIssues = isMobile ? MOBILE_MAX_ISSUES : DESKTOP_MAX_ISSUES;
+    const maxIssues = FETCH_MAX_ISSUES;
 
     setStocks(makeLoading(allNames));
     setOveralls({
@@ -309,7 +310,7 @@ export function AnalysisProvider({ current, spare, userId, children }: ProviderP
 
     return () => aborter.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMobile]);
+  }, []);
 
   /** Edit-modal save. Diff-applies the new name list for one portfolio:
    *  - added (in newNames, not in current set) → seed loading + fetch
@@ -319,7 +320,7 @@ export function AnalysisProvider({ current, spare, userId, children }: ProviderP
    *  once the post-edit ready set is settled. */
   const updatePortfolio = useCallback(
     (variant: Variant, newNames: readonly string[]) => {
-      const maxIssues = isMobile ? MOBILE_MAX_ISSUES : DESKTOP_MAX_ISSUES;
+      const maxIssues = FETCH_MAX_ISSUES;
       const oldNames = variant === "current" ? currentNames : spareNames;
       const otherNames = variant === "current" ? spareNames : currentNames;
 
@@ -376,7 +377,6 @@ export function AnalysisProvider({ current, spare, userId, children }: ProviderP
     [
       currentNames,
       spareNames,
-      isMobile,
       userId,
       fetchOneReal,
       revealOneFixture,

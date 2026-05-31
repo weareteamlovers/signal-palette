@@ -12,8 +12,8 @@ interface Props {
   issues: Issue[] | null;
 }
 
-/** Per-viewport grid shape. Mobile shrinks to 5×2 = 10 boxes, matching the
- *  maxIssues=10 that AnalysisProvider already requests on mobile. */
+/** Per-viewport grid shape. Mobile shrinks to 5×2 = 10 boxes; StockCard feeds
+ *  it the top-10 issues by importance (trimmed from the full fetched set). */
 const GRID_BY_VIEWPORT = {
   desktop: { cols: ISSUE_GRID.cols, rows: ISSUE_GRID.rows }, // 10 × 2
   tablet: { cols: ISSUE_GRID.cols, rows: ISSUE_GRID.rows }, //  10 × 2

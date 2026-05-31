@@ -28,7 +28,16 @@ const DEDUP_RULE = `같은 사건의 여러 측면을 별개 이슈로 나열하
 좋은 예 (한 줄로 통합):
   - "노조 파업 위기, 생산·정부 대응 영향"
 
-서로 다른 사건만 별개 이슈로 다루세요. 비슷한 주제·동일 원인의 이슈는 반드시 합치세요.`;
+서로 다른 사건만 별개 이슈로 다루세요. 비슷한 주제·동일 원인의 이슈는 반드시 합치세요.
+절대 동일하거나 매우 유사한 문장을 두 개 이상 출력하지 마세요. 같은 기사·같은 사건은 단 하나의 이슈로만 표현합니다.`;
+
+/** Recency window for stock issues. Anything older is dropped server-side
+ *  (when the issue carries a parseable date) regardless of what GPT returns. */
+const RECENCY_DAYS = 7;
+
+const RECENCY_RULE = `오직 최근 ${RECENCY_DAYS}일 이내에 보도된 이슈만 포함하세요. 그보다 오래된 기사나 이슈는 절대 포함하지 마세요. 각 이슈의 createdAt 도 반드시 이 기간 안이어야 합니다.`;
+
+const RESOLVED_RULE = `이미 해소되었거나 종결된 이슈는 제외하세요. 예: 타결된 협상, 종료된 파업, 마무리된 소송, 철회된 규제, 이미 주가에 충분히 반영되어 더 이상 영향이 없는 사건. 현재 진행 중이거나 앞으로 주가에 영향을 줄 수 있는, 살아있는 이슈만 남기세요.`;
 
 const FIELD_RULE = `각 이슈에는 아래 메타데이터를 함께 넣으세요:
 - "importance": 1부터 시작하는 정수 중요도 순위(1 = 가장 중요). 같은 응답 안에서 숫자를 중복하지 말고 1, 2, 3, … 으로 유일하게 매기세요.
@@ -151,6 +160,72 @@ function assignUniqueImportance(issues: Issue[]): void {
     });
 }
 
+/** Normalize issue text for duplicate comparison — lowercase, strip all
+ *  whitespace and punctuation/symbols so "주가 6.6% 하락" and "주가 6.6%하락."
+ *  collapse to the same key. */
+function normText(s: string): string {
+  return s.toLowerCase().replace(/[\s\p{P}\p{S}]+/gu, "");
+}
+
+function charBigrams(s: string): Set<string> {
+  const set = new Set<string>();
+  if (s.length <= 1) {
+    if (s) set.add(s);
+    return set;
+  }
+  for (let i = 0; i < s.length - 1; i += 1) set.add(s.slice(i, i + 2));
+  return set;
+}
+
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return a.size === b.size ? 1 : 0;
+  let inter = 0;
+  for (const x of a) if (b.has(x)) inter += 1;
+  return inter / (a.size + b.size - inter);
+}
+
+/** Near-duplicate text similarity threshold (char-bigram Jaccard). */
+const DUP_SIMILARITY = 0.6;
+
+/** Collapse duplicate / near-duplicate issues. GPT frequently restates the
+ *  same event as several issues despite the dedup prompt rule, so we enforce
+ *  it on the server: identical normalized text, identical source URL, or
+ *  bigram similarity ≥ DUP_SIMILARITY all count as a duplicate. The first
+ *  occurrence wins (GPT lists the most prominent framing first). */
+function dedupeIssues(issues: Issue[]): Issue[] {
+  const kept: Array<{ grams: Set<string> }> = [];
+  const seenText = new Set<string>();
+  const seenUrl = new Set<string>();
+  const out: Issue[] = [];
+  for (const issue of issues) {
+    const key = normText(issue.text);
+    const url = issue.source?.url;
+    if (key && seenText.has(key)) continue;
+    if (url && seenUrl.has(url)) continue;
+    const grams = charBigrams(key);
+    if (kept.some((k) => jaccard(grams, k.grams) >= DUP_SIMILARITY)) continue;
+    kept.push({ grams });
+    out.push(issue);
+    if (key) seenText.add(key);
+    if (url) seenUrl.add(url);
+  }
+  return out;
+}
+
+/** Drop issues whose (parseable) createdAt is clearly older than the recency
+ *  window. Undated or unparseable-date issues are kept — we can't judge them,
+ *  and GPT often omits the date for genuinely recent items. The 1-day grace
+ *  absorbs timezone rounding. */
+function filterRecent(issues: Issue[], nowMs: number): Issue[] {
+  const cutoff = nowMs - (RECENCY_DAYS + 1) * 24 * 60 * 60 * 1000;
+  return issues.filter((i) => {
+    if (!i.createdAt) return true;
+    const ms = Date.parse(i.createdAt);
+    if (Number.isNaN(ms)) return true;
+    return ms >= cutoff;
+  });
+}
+
 function normalizeOverall(raw: unknown): OverallSignal | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
@@ -167,8 +242,12 @@ export async function analyzeStock(
   stockName: string,
   maxIssues = 20,
 ): Promise<{ issues: Issue[]; overall: OverallSignal }> {
-  const today = new Date().toISOString().slice(0, 10);
-  const prompt = `당신은 한국·미국 주식 시장 애널리스트입니다. 종목 "${stockName}"에 대해 web_search 도구로 최근 7일(${today} 기준) 뉴스/이슈를 조사하고, 결과를 아래 JSON 형식으로만 응답하세요. 코드 블록이나 다른 설명 없이 JSON 객체 하나만 출력합니다.
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const sevenDaysAgo = new Date(now.getTime() - RECENCY_DAYS * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+  const prompt = `당신은 한국·미국 주식 시장 애널리스트입니다. 종목 "${stockName}"에 대해 web_search 도구로 최근 ${RECENCY_DAYS}일(${sevenDaysAgo} ~ ${today}) 뉴스/이슈를 조사하고, 결과를 아래 JSON 형식으로만 응답하세요. 코드 블록이나 다른 설명 없이 JSON 객체 하나만 출력합니다.
 
 각 이슈 텍스트는 한 문장, 최대 30자 이내(공백 포함). signal은 "positive"/"neutral"/"negative", intensity는 "strong"/"mid"/"mild". neutral의 intensity는 반드시 "mid".
 
@@ -177,6 +256,10 @@ ${FIELD_RULE}
 ${LANGUAGE_RULE}
 
 ${DEDUP_RULE}
+
+${RECENCY_RULE}
+
+${RESOLVED_RULE}
 
 ${ISSUE_ORDER_RULE}
 
@@ -206,9 +289,15 @@ ${STOCK_SCHEMA_HINT}
   }
   const obj = parsed as Record<string, unknown>;
   const rawIssues = Array.isArray(obj.issues) ? obj.issues : [];
-  const issues = sortByBucket(
-    rawIssues.map(normalizeIssue).filter((x): x is Issue => x !== null),
-  ).slice(0, maxIssues);
+  const normalized = rawIssues
+    .map(normalizeIssue)
+    .filter((x): x is Issue => x !== null);
+  // Server-side safety nets — the prompt rules aren't always honored:
+  //   1) drop issues older than the recency window (when dated)
+  //   2) collapse duplicate / near-duplicate issues
+  const recent = filterRecent(normalized, now.getTime());
+  const deduped = dedupeIssues(recent);
+  const issues = sortByBucket(deduped).slice(0, maxIssues);
   // Re-rank importance over the kept set so it's a unique 1..N (Step 4b).
   assignUniqueImportance(issues);
   const overall = normalizeOverall(obj.overall);

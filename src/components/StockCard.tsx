@@ -1,6 +1,7 @@
 "use client";
 
 import { STOCK_COMP_BOX } from "@/lib/design-tokens";
+import { MOBILE_MAX_ISSUES, topByImportance } from "@/lib/issues";
 import { useActiveEdit } from "./ActiveEditContext";
 import { useActiveStock } from "./ActiveStockContext";
 import { useAnalysis, type ViewportMode } from "./AnalysisProvider";
@@ -46,6 +47,11 @@ export function StockCard({ name, variant, slotIndex }: Props) {
   // Mobile cards are narrow (150px); long names overflow and get marquee-scrolled.
   // Desktop/tablet cards are 290px and fit the existing names statically.
   const isMobile = viewport === "mobile";
+
+  // Mobile shows only the top-10 issues by importance (the card always holds
+  // the full fetched set; we trim at render rather than re-analyzing on resize).
+  const displayIssues =
+    issues && isMobile ? topByImportance(issues, MOBILE_MAX_ISSUES) : issues;
 
   const handleClick = () => {
     if (isEmpty) openEdit(variant, slotIndex);
@@ -95,7 +101,7 @@ export function StockCard({ name, variant, slotIndex }: Props) {
       {/* Issue grid — 10×2 on desktop/tablet, 5×2 on mobile. Empty slot
           renders 20 empty boxes (IssueGrid issues=[] path). */}
       <div className={styles.gridWrap}>
-        <IssueGrid issues={isEmpty ? [] : issues} />
+        <IssueGrid issues={isEmpty ? [] : displayIssues} />
       </div>
     </div>
   );

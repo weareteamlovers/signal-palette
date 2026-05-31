@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { CURRENT_STOCK_NAMES, SPARE_STOCK_NAMES } from "@/data/default-portfolio";
+import { MOBILE_MAX_ISSUES, topByImportance } from "@/lib/issues";
 import type { Issue } from "@/types";
 import { useActiveIssue } from "./ActiveIssueContext";
 import { useAnalysis } from "./AnalysisProvider";
@@ -26,12 +27,16 @@ export function TopTicker() {
   const visible = viewport !== "desktop";
 
   const flat = useMemo(() => {
+    // Mobile cycles only the top-10 issues by importance (same trim as the
+    // mobile card grid); tablet keeps the full set.
+    const limit =
+      viewport === "mobile" ? MOBILE_MAX_ISSUES : Number.POSITIVE_INFINITY;
     const out: Array<{ stockName: string; issue: Issue }> = [];
     const push = (names: readonly string[]) => {
       for (const name of names) {
         const s = stocks[name];
         if (!s || s.status !== "ready") continue;
-        for (const issue of s.stock.issues) {
+        for (const issue of topByImportance(s.stock.issues, limit)) {
           out.push({ stockName: name, issue });
         }
       }
@@ -39,12 +44,12 @@ export function TopTicker() {
     push(CURRENT_STOCK_NAMES);
     push(SPARE_STOCK_NAMES);
     return out;
-  }, [stocks]);
+  }, [stocks, viewport]);
 
   const [index, setIndex] = useState(0);
   const { setActiveIssue } = useActiveIssue();
 
-  // Reset index if flat shrinks (e.g. mobile re-fetch returns fewer issues).
+  // Reset index if flat shrinks (e.g. switching to mobile trims to top-10).
   useEffect(() => {
     if (flat.length === 0) {
       if (index !== 0) setIndex(0);
