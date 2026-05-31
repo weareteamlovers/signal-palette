@@ -12,29 +12,42 @@ import { StockModal } from "@/components/StockModal";
 import { TopTicker } from "@/components/TopTicker";
 import { CURRENT_STOCK_NAMES, SPARE_STOCK_NAMES } from "@/data/default-portfolio";
 import { FOOTER } from "@/lib/design-tokens";
+import { fetchOwnPortfolios } from "@/lib/supabase/portfolios";
+import { fetchOwnProfile } from "@/lib/supabase/profiles";
 import { createClient as createServerSupabase } from "@/lib/supabase/server";
 import styles from "./page.module.css";
 
+function padTo8(arr: readonly string[]): string[] {
+  const out = [...arr];
+  while (out.length < 8) out.push("");
+  return out.slice(0, 8);
+}
+
 export default async function Page() {
-  // Server-side user fetch (4a-4). null when env is missing or user is logged
-  // out. Per-user portfolio loading lands in 4a-7; for now the default fixture
-  // is used regardless.
   const supabase = await createServerSupabase();
   const userResult = supabase ? await supabase.auth.getUser() : null;
   const sbUser = userResult?.data.user ?? null;
 
-  // Two separate sources:
-  //  * explicitNickname — set by NicknameModal save (user_metadata.nickname).
-  //    NicknameGate is shown until this is filled, so closing the tab without
-  //    finishing the modal reopens it on next login.
-  //  * providerNickname — whatever the OAuth provider gave us (Kakao
-  //    profile_nickname / Google name). Used to (a) pre-fill the modal input
-  //    and (b) fall back in the header when the user hasn't finished yet.
+  // 4a-7: nickname is now sourced from `profiles.nickname` (single source of
+  // truth). Falls back to whatever the OAuth provider gave us so the header
+  // can show a friendly label while the gate is still pending.
+  let explicitNickname: string | null = null;
+  let currentNames: readonly string[] = CURRENT_STOCK_NAMES;
+  let spareNames: readonly string[] = SPARE_STOCK_NAMES;
+
+  if (supabase && sbUser) {
+    const profile = await fetchOwnProfile(supabase, sbUser.id);
+    explicitNickname = profile?.nickname ?? null;
+
+    // Logged-in users see THEIR portfolios. Missing rows ⇒ 8 empty slots
+    // (signed up but never edited anything). Default 16 stocks stay reserved
+    // for the logged-out anonymous view.
+    const ports = await fetchOwnPortfolios(supabase, sbUser.id);
+    currentNames = padTo8(ports?.current ?? []);
+    spareNames = padTo8(ports?.spare ?? []);
+  }
+
   const meta = (sbUser?.user_metadata ?? {}) as Record<string, unknown>;
-  const explicitNickname =
-    typeof meta.nickname === "string" && meta.nickname.trim() !== ""
-      ? meta.nickname
-      : null;
   const providerNickname =
     [meta.name, meta.full_name, meta.user_name, meta.preferred_username].find(
       (v): v is string => typeof v === "string" && v.trim() !== "",
@@ -43,23 +56,30 @@ export default async function Page() {
   const showNicknameGate = !!sbUser && !explicitNickname;
   const displayNickname = explicitNickname ?? providerNickname;
 
-  // Kakao without 비즈앱 review doesn't expose email — accept the user object
-  // anyway so the logged-in header still renders. AuthHeader falls back to
-  // the nickname for the top-right slot when email is empty.
   const user = sbUser
     ? { email: sbUser.email ?? "", nickname: displayNickname }
     : null;
-  // 4a-6-1: edit modal is only reachable once the user has explicitly set a
-  // nickname via the NicknameModal. Provider-supplied nicknames don't count
-  // (the gate is still active until [확인] is clicked).
   const canEdit = !!user && !!explicitNickname;
 
+  // 4a-5 / 139:* onboarding: a user who just set a nickname but has no
+  // stocks yet (both portfolios empty) gets the "포트폴리오를 채워주세요"
+  // modal automatically, with row 1's search dropdown pre-opened. They can
+  // hit [취소] to dismiss; that leaves portfolios empty so it appears again
+  // on the next reload — they finish properly by saving at least one slot.
+  const isPortfolioEmpty =
+    currentNames.every((n) => n === "") && spareNames.every((n) => n === "");
+  const showOnboarding = !!user && !!explicitNickname && isPortfolioEmpty;
+
   return (
-    <AnalysisProvider current={CURRENT_STOCK_NAMES} spare={SPARE_STOCK_NAMES}>
+    <AnalysisProvider current={currentNames} spare={spareNames} userId={sbUser?.id ?? null}>
       <ActiveIssueProvider>
         <ActiveTooltipProvider>
           <ActiveStockProvider>
-          <ActiveEditProvider>
+          <ActiveEditProvider
+            initialActive={showOnboarding ? "current" : null}
+            initialAutoOpenRow={showOnboarding ? 0 : null}
+            initialMode={showOnboarding ? "onboarding" : "edit"}
+          >
           <main className={styles.main}>
             {/* Sticky top ticker — tablet/mobile only (TopTicker returns null
                 on desktop). Stays glued to the viewport top while scrolling. */}
@@ -72,7 +92,7 @@ export default async function Page() {
 
             <div className={styles.frame}>
               {/* Logged-out: §14-2 OAuth entry point. Logged-in: §14-3 user
-                  email (temporary, replaced by nickname in 4a-5) + logout. */}
+                  (nickname from profiles) + logout. */}
               <AuthHeader user={user} />
 
               <PortfolioSection

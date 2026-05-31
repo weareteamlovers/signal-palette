@@ -12,6 +12,10 @@ interface Props {
    *  modal-relative top: row i → top = 7 + 43*i (Figma 1행 예시 frame y=124,
    *  pattern y = 124 + 43*i). x is fixed at left=481 (frame x=882). */
   rowIndex: number;
+  /** Additional vertical offset applied on top of the row-derived top.
+   *  Used by the onboarding edit modal (§14-11) whose rows are shifted
+   *  down by 73 to accommodate the title bar. */
+  additionalTopOffset?: number;
   /** Called when a [선택] button is clicked. Parent closes the dropdown
    *  and applies the swap (4a-6-3). */
   onSelect: (name: string) => void;
@@ -39,7 +43,13 @@ function SearchIcon() {
   );
 }
 
-export function StockSearchDropdown({ excludeNames, rowIndex, onSelect, onClose }: Props) {
+export function StockSearchDropdown({
+  excludeNames,
+  rowIndex,
+  additionalTopOffset = 0,
+  onSelect,
+  onClose,
+}: Props) {
   const [query, setQuery] = useState("");
   const ref = useRef<HTMLDivElement | null>(null);
 
@@ -87,7 +97,7 @@ export function StockSearchDropdown({ excludeNames, rowIndex, onSelect, onClose 
       ref={ref}
       className={styles.dropdown}
       role="listbox"
-      style={{ top: 7 + rowIndex * 43 }}
+      style={{ top: 7 + rowIndex * 43 + additionalTopOffset }}
     >
       <div className={styles.search}>
         <SearchIcon />

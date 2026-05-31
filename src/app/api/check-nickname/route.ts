@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 /** POST /api/check-nickname
  *  body: { nickname: string }
  *  returns: { available: boolean }
  *
- *  Checks across every Supabase user's user_metadata.nickname for a match.
- *  Used by NicknameModal (4a-5) to prevent two accounts (e.g. Kakao + Google)
- *  from claiming the same nickname. Real `profiles` table with a UNIQUE
- *  constraint lands in 4a-7 and will replace this scan. */
+ *  4a-7: backed by the `public.check_nickname(text)` Postgres function
+ *  (SECURITY DEFINER) so the row scan happens with elevated privileges while
+ *  the public RLS policy still restricts plain SELECT on profiles to the
+ *  row owner. */
 export async function POST(req: Request) {
   let body: unknown;
   try {
@@ -18,31 +18,22 @@ export async function POST(req: Request) {
   }
   const nickname =
     typeof (body as { nickname?: unknown })?.nickname === "string"
-      ? ((body as { nickname: string }).nickname).trim()
+      ? (body as { nickname: string }).nickname.trim()
       : "";
   if (!nickname) {
     return NextResponse.json({ available: false, error: "empty" }, { status: 400 });
   }
 
-  const admin = createAdminClient();
-  if (!admin) {
-    // Env missing — degrade gracefully so dev without secrets still works.
-    return NextResponse.json({ available: true, warning: "admin-disabled" });
+  const supabase = await createClient();
+  if (!supabase) {
+    // Env missing — degrade gracefully (dev without secrets still walkable).
+    return NextResponse.json({ available: true, warning: "no-supabase" });
   }
 
-  // Walk every user. perPage caps at 1000 in GoTrue; for this stage the user
-  // count stays small, so a single page is fine. If it grows we'll move to
-  // the profiles table in 4a-7 anyway.
-  const { data, error } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  const { data, error } = await supabase.rpc("check_nickname", { name: nickname });
   if (error) {
-    console.warn("[check-nickname] listUsers failed:", error.message);
-    return NextResponse.json({ available: true, warning: "list-failed" });
+    console.warn("[check-nickname] rpc failed:", error.message);
+    return NextResponse.json({ available: true, warning: "rpc-failed" });
   }
-
-  const taken = data.users.some((u) => {
-    const n = (u.user_metadata as Record<string, unknown> | null)?.nickname;
-    return typeof n === "string" && n === nickname;
-  });
-
-  return NextResponse.json({ available: !taken });
+  return NextResponse.json({ available: data === true });
 }

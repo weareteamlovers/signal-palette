@@ -22,17 +22,16 @@ import { useAnalysis } from "./AnalysisProvider";
 import { StockSearchDropdown } from "./StockSearchDropdown";
 import styles from "./EditPortfolioModal.module.css";
 
-// Modal-relative row geometry per Figma §14-4. Wrapper top uses the change
-// button's top (the smallest of the three); children are then positioned
-// inside the wrapper using their offset from that anchor.
+// Modal-relative row geometry per Figma §14-4 (edit mode). Onboarding mode
+// (Figma node 139:*, §14-11) adds a title area on top and shifts every row
+// + the footer by ONBOARDING_SHIFT pixels.
 const WRAPPER_TOP_BASE = 14; // 131 - 117 (= 변경 btn top)
 const ROW_GAP = 43;
-const SEPARATOR_TOPS = [49, 92, 135, 178, 221, 264, 307]; // 7 lines
-
-// Slot numbers (1–8) are rendered OUTSIDE the SortableRow at fixed modal-
-// relative positions, so the number stays put while a row is being dragged
-// (per user request 2026-05-26). y = 20 + i*43 matches Figma §14-4 text y.
+const SEPARATOR_BASE_TOPS = [49, 92, 135, 178, 221, 264, 307]; // 7 lines
 const NUMBER_TOP_BASE = 20; // 137 - 117
+const FOOTER_TOP_BASE = 363; // 480 - 117
+
+const ONBOARDING_SHIFT = 73; // every row/separator/footer top shifts by this
 
 // Inside-wrapper offsets (children top relative to wrapper top=0).
 const NAME_TOP_IN_WRAPPER = 6;  // 20 - 14
@@ -50,12 +49,20 @@ interface RowProps {
   index: number; // visible slot index 0..7
   name: string;
   anyDragging: boolean;
+  rowShift: number; // 0 for edit mode, ONBOARDING_SHIFT for onboarding
   onChangeClick: () => void;
 }
 
 /** A single sortable row. Listeners attach to the handle only, so the row
  *  body stays clickable. */
-function SortableRow({ id, index, name, anyDragging, onChangeClick }: RowProps) {
+function SortableRow({
+  id,
+  index,
+  name,
+  anyDragging,
+  rowShift,
+  onChangeClick,
+}: RowProps) {
   const {
     attributes,
     listeners,
@@ -65,7 +72,7 @@ function SortableRow({ id, index, name, anyDragging, onChangeClick }: RowProps) 
     isDragging,
   } = useSortable({ id });
 
-  const wrapperTop = WRAPPER_TOP_BASE + index * ROW_GAP;
+  const wrapperTop = WRAPPER_TOP_BASE + index * ROW_GAP + rowShift;
   const style: React.CSSProperties = {
     top: wrapperTop,
     transform: CSS.Transform.toString(transform),
@@ -74,6 +81,10 @@ function SortableRow({ id, index, name, anyDragging, onChangeClick }: RowProps) 
     boxShadow: isDragging ? "0 4px 12px rgba(0, 0, 0, 0.3)" : undefined,
     zIndex: isDragging ? 10 : undefined,
   };
+
+  // 빈 슬롯 → "추가", 종목 있음 → "변경". 사용자가 종목을 dropdown 에서
+  // 선택하면 다음 render 에서 자동으로 라벨이 바뀜.
+  const btnLabel = name === "" ? "추가" : "변경";
 
   return (
     <div ref={setNodeRef} className={styles.row} style={style} {...attributes}>
@@ -88,7 +99,7 @@ function SortableRow({ id, index, name, anyDragging, onChangeClick }: RowProps) 
         onClick={onChangeClick}
         disabled={anyDragging}
       >
-        변경
+        {btnLabel}
       </button>
       <div
         className={styles.handle}
@@ -105,7 +116,7 @@ function SortableRow({ id, index, name, anyDragging, onChangeClick }: RowProps) 
 }
 
 export function EditPortfolioModal() {
-  const { activeVariant, autoOpenRow, closeEdit } = useActiveEdit();
+  const { activeVariant, autoOpenRow, mode, closeEdit } = useActiveEdit();
   const { currentNames, spareNames, updatePortfolio } = useAnalysis();
   const modalRef = useRef<HTMLDivElement | null>(null);
   const [openRow, setOpenRow] = useState<number | null>(null);
@@ -184,16 +195,31 @@ export function EditPortfolioModal() {
     closeEdit();
   };
 
+  const isOnboarding = mode === "onboarding";
+  const rowShift = isOnboarding ? ONBOARDING_SHIFT : 0;
+  const separatorTops = SEPARATOR_BASE_TOPS.map((t) => t + rowShift);
+  const numberTopBase = NUMBER_TOP_BASE + rowShift;
+  const footerTop = FOOTER_TOP_BASE + rowShift;
+
   return (
     <div
       ref={modalRef}
       className={styles.modal}
       data-variant={activeVariant}
+      data-mode={mode}
       role="dialog"
       aria-modal="true"
-      aria-label={`${activeVariant === "current" ? "현재" : "예비"} 포트폴리오 수정`}
+      aria-label={
+        isOnboarding
+          ? "포트폴리오를 채워주세요"
+          : `${activeVariant === "current" ? "현재" : "예비"} 포트폴리오 수정`
+      }
     >
-      {SEPARATOR_TOPS.map((top) => (
+      {isOnboarding && (
+        <p className={styles.onboardingTitle}>포트폴리오를 채워주세요</p>
+      )}
+
+      {separatorTops.map((top) => (
         <span key={`sep-${top}`} className={styles.separator} style={{ top }} />
       ))}
 
@@ -203,7 +229,7 @@ export function EditPortfolioModal() {
         <p
           key={`num-${i}`}
           className={styles.number}
-          style={{ top: NUMBER_TOP_BASE + i * ROW_GAP }}
+          style={{ top: numberTopBase + i * ROW_GAP }}
         >
           {i + 1}
         </p>
@@ -224,16 +250,27 @@ export function EditPortfolioModal() {
               index={i}
               name={name}
               anyDragging={draggingId !== null}
+              rowShift={rowShift}
               onChangeClick={() => setOpenRow(i)}
             />
           ))}
         </SortableContext>
       </DndContext>
 
-      <button type="button" className={styles.cancelBtn} onClick={closeEdit}>
+      <button
+        type="button"
+        className={styles.cancelBtn}
+        style={{ top: footerTop }}
+        onClick={closeEdit}
+      >
         취소
       </button>
-      <button type="button" className={styles.confirmBtn} onClick={handleConfirm}>
+      <button
+        type="button"
+        className={styles.confirmBtn}
+        style={{ top: footerTop }}
+        onClick={handleConfirm}
+      >
         완료
       </button>
 
@@ -243,6 +280,7 @@ export function EditPortfolioModal() {
           rowIndex={
             activeVariant === "spare" && openRow >= 3 ? 2 : openRow
           }
+          additionalTopOffset={rowShift}
           onSelect={(name) => {
             setPendingNames((p) => {
               const next = [...p];

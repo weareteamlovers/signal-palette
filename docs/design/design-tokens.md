@@ -545,6 +545,8 @@ linear-gradient(
 - 드래그 앤 드롭으로 순서 변경 가능 — 14-7 참고.
 - 취소: 변경사항 폐기. 완료: 변경사항 저장 + analyze 재호출 (변경된 종목만, 빈 슬롯은 호출 없음).
 - ESC / 모달 외부 클릭 = 취소와 동일.
+- **[변경] 버튼 라벨 (4a-7 후)**: 슬롯에 종목 있음 → `"변경"`, 빈 슬롯 → `"추가"`. dropdown 에서 종목 선택 직후 자동 라벨 교체.
+- **Onboarding 변형 (Figma 노드 139:388, §14-4 의 확장)**: 신규 가입자 (nickname 있고 portfolios 모두 빈 상태) 에게 페이지 진입 시 자동 mount. 모달 height 407→**479** (+72), 상단에 `"포트폴리오를 채워주세요"` 타이틀 (modal-rel left=114/top=23, 249×28, SemiBold **24px**, white), 모든 행 + separator + footer 의 modal-rel top 에 **+73 shift**. 행 1 의 dropdown 도 자동 활성 (autoOpenRow=0) + 동일 +73 shift (`additionalTopOffset` prop). [취소] 누르면 빈 상태로 메인 진입, 다음 새로고침 시 같은 조건 만족하면 다시 자동.
 
 ### 14-5. 변경 dropdown (종목 검색)
 

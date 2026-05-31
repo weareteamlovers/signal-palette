@@ -30,6 +30,28 @@
   top: 729px;
 }
 
+/* Onboarding mode (Figma node 139:388): adds a 73px title bar at the top
+   for "포트폴리오를 채워주세요" and grows the modal height accordingly. */
+.modal[data-mode="onboarding"] {
+  height: 479px;
+}
+
+.onboardingTitle {
+  position: absolute;
+  left: 114px; /* 515 - 401 */
+  top: 23px;   /* 140 - 117 */
+  width: 249px;
+  height: 28px;
+  margin: 0;
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: 24px;
+  line-height: 28px;
+  color: #ffffff;
+  white-space: nowrap;
+  text-align: center;
+}
+
 /* --- Row separators (7 lines, 1px white, between the 8 rows) ------------ */
 
 .separator {

@@ -17,6 +17,8 @@ import {
   FIXTURE_STAGGER_MS,
   USE_FIXTURE,
 } from "@/lib/feature-flags";
+import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
+import { upsertOwnPortfolio } from "@/lib/supabase/portfolios";
 import type { OverallSignal, Stock } from "@/types";
 
 type StockState =
@@ -65,6 +67,9 @@ const AnalysisContext = createContext<AnalysisValue>({
 interface ProviderProps {
   current: readonly string[];
   spare: readonly string[];
+  /** Logged-in user id (Supabase auth). When set, updatePortfolio persists
+   *  to the `portfolios` table. null for logged-out / anonymous browsing. */
+  userId: string | null;
   children: ReactNode;
 }
 
@@ -113,7 +118,7 @@ function shuffle<T>(arr: T[]): T[] {
  * network. The portfolio overall resets and re-fires once the new ready
  * set is complete.
  */
-export function AnalysisProvider({ current, spare, children }: ProviderProps) {
+export function AnalysisProvider({ current, spare, userId, children }: ProviderProps) {
   const [viewport, setViewport] = useState<ViewportMode>("desktop");
   const isMobile = viewport === "mobile";
 
@@ -345,6 +350,15 @@ export function AnalysisProvider({ current, spare, children }: ProviderProps) {
       setOveralls((o) => ({ ...o, [variant]: { status: "loading" } }));
       overallDispatched.current[variant] = false;
 
+      // 4a-7: persist to the `portfolios` table when the user is logged in.
+      // Fire-and-forget — UI doesn't block on the network.
+      if (userId) {
+        const supabase = createBrowserSupabase();
+        if (supabase) {
+          void upsertOwnPortfolio(supabase, userId, variant, newNames);
+        }
+      }
+
       // Fetch / reveal added stocks. Fixture mode does it immediately (no
       // stagger — only 1–8 new at most). Real mode fires parallel requests.
       if (added.length > 0) {
@@ -363,6 +377,7 @@ export function AnalysisProvider({ current, spare, children }: ProviderProps) {
       currentNames,
       spareNames,
       isMobile,
+      userId,
       fetchOneReal,
       revealOneFixture,
     ],

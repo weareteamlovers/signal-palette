@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { upsertOwnProfile } from "@/lib/supabase/profiles";
 import styles from "./NicknameModal.module.css";
 
 interface Props {
@@ -87,12 +88,20 @@ export function NicknameModal({ onComplete }: Props) {
     if (!supabase) {
       console.warn("[nickname] supabase env missing; skipping save");
     } else {
-      const { error } = await supabase.auth.updateUser({
-        data: { nickname: trimmed },
-      });
-      if (error) {
-        console.error("[nickname] updateUser failed:", error.message);
-        setStatus({ kind: "error", msg: "저장에 실패했어요. 다시 시도해주세요" });
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id;
+      if (!userId) {
+        setStatus({ kind: "error", msg: "로그인 정보를 확인할 수 없어요" });
+        setSubmitting(false);
+        return;
+      }
+      const res = await upsertOwnProfile(supabase, userId, trimmed);
+      if (!res.ok) {
+        if (res.reason === "duplicate") {
+          setStatus({ kind: "error", msg: "이미 사용중인 닉네임이에요 ㅠ.ㅠ" });
+        } else {
+          setStatus({ kind: "error", msg: "저장에 실패했어요. 다시 시도해주세요" });
+        }
         setSubmitting(false);
         return;
       }
