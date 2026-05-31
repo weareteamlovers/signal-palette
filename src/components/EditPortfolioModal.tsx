@@ -148,11 +148,13 @@ export function EditPortfolioModal() {
   useEffect(() => {
     if (!activeVariant) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeEdit();
+      // Per §14-5: when the dropdown is open, ESC closes the dropdown only
+      // (modal stays open). The dropdown's own ESC listener handles that.
+      if (e.key === "Escape" && openRow === null) closeEdit();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [activeVariant, closeEdit]);
+  }, [activeVariant, openRow, closeEdit]);
 
   useEffect(() => {
     if (!activeVariant) return;

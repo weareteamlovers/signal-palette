@@ -635,7 +635,7 @@ linear-gradient(
 - 차트랑 같이 보기 버튼: 클릭 안 됨. **hover 시 `Comming Soon!` 툴팁 표시**. 후속 step 에서 구현.
 - ESC / 모달 외부 클릭 / [닫기] 버튼 = 모달 닫힘.
 - Timestamp 포맷: `26.05.21 오후 3:58` (한국 KST 고정). SSR hydration 회피를 위해 `useEffect` 안에서 클라이언트 사이드 포맷팅.
-- `createdAt` 필드는 **Step 4b 에서 GPT 응답에 추가됨**. 4a 에선 fixture 에만 mock createdAt 포함 (`USE_FIXTURE=true` 일 때만 의미있는 timestamp 표시, live mode 면 빈칸 또는 "-").
+- `createdAt` 필드는 **Step 4b 에서 GPT 응답에 추가됨 (완료, 2026-05-31)**. live mode 도 GPT 가 ISO 8601 createdAt 을 반환 (서버 `normalizeCreatedAt` 가 `Date.parse` 검증/정규화, 파싱 불가 시 drop → 모달 "-"). fixture 는 mock createdAt 유지. `source`(`{ name, url? }`) / `importance`(종목당 unique 1..N) 필드도 4b 에서 함께 추가되지만 **데이터만** — 모달엔 미표시 (출처 표시는 4c, importance 활용은 4d).
 
 ### 14-7. 드래그 앤 드롭 (수정 모달 순서 변경)
 

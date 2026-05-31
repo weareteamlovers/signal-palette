@@ -8,10 +8,20 @@ export interface Issue {
   signal: Signal;
   /** Strength of the signal — neutral always uses "mid". */
   intensity: Intensity;
-  /** ISO 8601 UTC timestamp. Present in fixture mode (mock values); absent in
-   *  live mode until Step 4b adds the field to the GPT response. Used by the
-   *  stock detail modal to render KST timestamps. */
+  /** ISO 8601 UTC timestamp of when the issue/article was reported. Added to
+   *  the GPT response in Step 4b (server-validated/normalized; dropped if
+   *  unparseable). Also present in fixture mode (mock values). Used by the
+   *  stock detail modal to render KST timestamps. May be absent when GPT
+   *  omits a usable date. */
   createdAt?: string;
+  /** Unique importance rank within a stock's issue list — 1 = most important
+   *  (Step 4b). The server re-ranks GPT's raw values to guarantee uniqueness.
+   *  Reserved for Step 4d (mobile Top-10 / pop scoring); not used by the
+   *  card-grid or modal sort yet. */
+  importance?: number;
+  /** News source backing the issue (Step 4b). Data only — not rendered yet;
+   *  real source display lands with the Step 4c news adapters. */
+  source?: { name: string; url?: string };
 }
 
 /** Issues come back in this fixed order from GPT and are rendered as-is:

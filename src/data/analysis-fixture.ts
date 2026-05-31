@@ -664,17 +664,36 @@ export const ANALYSIS_FIXTURE: AnalysisFixture | null = {
   }
 };
 
-// Step 4a-3: enrich every issue with a deterministic mock `createdAt`.
-// Base = 2026-05-26 15:00 KST (06:00 UTC). Each stock starts 4h earlier than
-// the previous; each subsequent issue within a stock is 31 min earlier than
-// the previous. Distributes ~102 issues across ~3 days, which is realistic
-// enough for the modal preview without needing per-issue hand-typed times.
+// Step 4a-3 / 4b: enrich every issue with deterministic mock metadata so
+// fixture mode exercises the same fields the live GPT path now returns.
+//   - createdAt: base = 2026-05-26 15:00 KST (06:00 UTC). Each stock starts 4h
+//     earlier than the previous; each issue within a stock is 31 min earlier
+//     than the previous. Distributes ~102 issues across ~3 days, realistic
+//     enough for the modal preview without per-issue hand-typed times.
+//   - importance: unique 1..N per stock (issues are already in rough priority
+//     order), 1 = most important (Step 4b).
+//   - source: a mock { name, url } cycled from a small pool (Step 4b). Data
+//     only — not rendered, just keeps the field populated for fixture mode.
+const MOCK_ISSUE_SOURCES = [
+  "연합뉴스",
+  "한국경제",
+  "매일경제",
+  "조선비즈",
+  "Bloomberg",
+  "Reuters",
+  "CNBC",
+  "The Verge",
+];
 if (ANALYSIS_FIXTURE) {
   const baseUtcMs = Date.UTC(2026, 4, 26, 6, 0, 0);
   Object.values(ANALYSIS_FIXTURE.stocks).forEach((stock, stockIdx) => {
     stock.issues.forEach((issue, issueIdx) => {
       const offsetMs = (stockIdx * 240 + issueIdx * 31) * 60 * 1000;
       issue.createdAt = new Date(baseUtcMs - offsetMs).toISOString();
+      issue.importance = issueIdx + 1;
+      const name =
+        MOCK_ISSUE_SOURCES[(stockIdx + issueIdx) % MOCK_ISSUE_SOURCES.length];
+      issue.source = { name, url: `https://news.example.com/${stockIdx}-${issueIdx}` };
     });
   });
 }

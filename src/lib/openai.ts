@@ -30,9 +30,21 @@ const DEDUP_RULE = `같은 사건의 여러 측면을 별개 이슈로 나열하
 
 서로 다른 사건만 별개 이슈로 다루세요. 비슷한 주제·동일 원인의 이슈는 반드시 합치세요.`;
 
+const FIELD_RULE = `각 이슈에는 아래 메타데이터를 함께 넣으세요:
+- "importance": 1부터 시작하는 정수 중요도 순위(1 = 가장 중요). 같은 응답 안에서 숫자를 중복하지 말고 1, 2, 3, … 으로 유일하게 매기세요.
+- "createdAt": 해당 이슈가 보도된 시각을 ISO 8601 UTC 로 (예: "2026-05-30T07:30:00Z"). web_search 결과의 게시 일자를 사용하고, 정확한 시각을 모르면 보도 날짜의 12:00Z 로 표기하세요. 날짜조차 불명확하면 이 필드를 생략하세요.
+- "source": 근거 기사의 출처. { "name": "매체명", "url": "기사 URL" } 형식. URL 을 모르면 url 은 빼고 name 만 넣으세요.`;
+
 const STOCK_SCHEMA_HINT = `{
   "issues": [
-    { "text": "한 문장 30자 이내", "signal": "positive|neutral|negative", "intensity": "strong|mid|mild" }
+    {
+      "text": "한 문장 30자 이내",
+      "signal": "positive|neutral|negative",
+      "intensity": "strong|mid|mild",
+      "importance": 1,
+      "createdAt": "2026-05-30T07:30:00Z",
+      "source": { "name": "출처 매체명", "url": "기사 URL" }
+    }
   ],
   "overall": { "signal": "positive|neutral|negative", "intensity": "strong|mid|mild" }
 }`;
@@ -54,6 +66,25 @@ function isIntensity(x: unknown): x is Intensity {
   return typeof x === "string" && (INTENSITIES as readonly string[]).includes(x);
 }
 
+/** Step 4b: keep createdAt only if it parses to a real date; re-emit as a
+ *  canonical ISO 8601 UTC string. GPT sometimes returns junk dates. */
+function normalizeCreatedAt(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const ms = Date.parse(raw);
+  if (Number.isNaN(ms)) return undefined;
+  return new Date(ms).toISOString();
+}
+
+/** Step 4b: source must at least carry a non-empty name; url is optional. */
+function normalizeSource(raw: unknown): Issue["source"] {
+  if (!raw || typeof raw !== "object") return undefined;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.name !== "string" || o.name.trim() === "") return undefined;
+  const source: { name: string; url?: string } = { name: o.name.trim() };
+  if (typeof o.url === "string" && o.url.trim() !== "") source.url = o.url.trim();
+  return source;
+}
+
 function normalizeIssue(raw: unknown): Issue | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
@@ -62,7 +93,17 @@ function normalizeIssue(raw: unknown): Issue | null {
   }
   // Neutral always renders with the single mid shade — coerce defensively.
   const intensity = o.signal === "neutral" ? "mid" : o.intensity;
-  return { text: o.text.trim(), signal: o.signal, intensity };
+  const issue: Issue = { text: o.text.trim(), signal: o.signal, intensity };
+  // Step 4b: optional metadata. importance keeps GPT's raw value here;
+  // assignUniqueImportance() re-ranks it to a unique 1..N afterward.
+  const createdAt = normalizeCreatedAt(o.createdAt);
+  if (createdAt) issue.createdAt = createdAt;
+  const source = normalizeSource(o.source);
+  if (source) issue.source = source;
+  if (typeof o.importance === "number" && Number.isFinite(o.importance)) {
+    issue.importance = o.importance;
+  }
+  return issue;
 }
 
 /** GPT does not always honor the 7-bucket order, so we re-sort on the server.
@@ -89,6 +130,27 @@ function sortByBucket(issues: Issue[]): Issue[] {
   return [...issues].sort((a, b) => bucketIndex(a) - bucketIndex(b));
 }
 
+/** Step 4b: rewrite each issue's importance to a unique 1..N rank (1 = most
+ *  important). GPT frequently repeats or skips numbers, so we re-rank by its
+ *  raw importance (ascending; missing → last), breaking ties by array order,
+ *  then number 1..N. Mutates the issues in place; their array order is left
+ *  untouched — the 7-bucket display sort is independent. */
+function assignUniqueImportance(issues: Issue[]): void {
+  issues
+    .map((issue, idx) => ({
+      issue,
+      idx,
+      raw:
+        typeof issue.importance === "number"
+          ? issue.importance
+          : Number.POSITIVE_INFINITY,
+    }))
+    .sort((a, b) => a.raw - b.raw || a.idx - b.idx)
+    .forEach((entry, rank) => {
+      entry.issue.importance = rank + 1;
+    });
+}
+
 function normalizeOverall(raw: unknown): OverallSignal | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
@@ -110,6 +172,8 @@ export async function analyzeStock(
 
 각 이슈 텍스트는 한 문장, 최대 30자 이내(공백 포함). signal은 "positive"/"neutral"/"negative", intensity는 "strong"/"mid"/"mild". neutral의 intensity는 반드시 "mid".
 
+${FIELD_RULE}
+
 ${LANGUAGE_RULE}
 
 ${DEDUP_RULE}
@@ -125,7 +189,7 @@ ${STOCK_SCHEMA_HINT}
 오늘 날짜: ${today}`;
 
   const response = await client.responses.create({
-    model: "gpt-4o",
+    model: "gpt-4o-mini",
     tools: [{ type: "web_search" }],
     input: prompt,
   });
@@ -145,6 +209,8 @@ ${STOCK_SCHEMA_HINT}
   const issues = sortByBucket(
     rawIssues.map(normalizeIssue).filter((x): x is Issue => x !== null),
   ).slice(0, maxIssues);
+  // Re-rank importance over the kept set so it's a unique 1..N (Step 4b).
+  assignUniqueImportance(issues);
   const overall = normalizeOverall(obj.overall);
   if (!overall) {
     throw new Error(`GPT response for "${stockName}" missing valid overall`);
@@ -179,7 +245,7 @@ ${summary}
 neutral의 intensity는 반드시 "mid".`;
 
   const response = await client.responses.create({
-    model: "gpt-4o",
+    model: "gpt-4o-mini",
     input: prompt,
   });
 
