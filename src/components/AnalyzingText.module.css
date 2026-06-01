@@ -1,0 +1,54 @@
+.wrap {
+  display: inline-flex;
+  align-items: baseline;
+  font: inherit;
+  color: inherit;
+}
+
+/* Gentle breathing pulse on the message. */
+.label {
+  animation: analyzingPulse 1.6s ease-in-out infinite;
+}
+
+.dots {
+  display: inline-flex;
+}
+
+/* Sequential blink, like a typing/loading indicator. */
+.dot {
+  animation: analyzingBlink 1.4s ease-in-out infinite both;
+}
+.dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes analyzingPulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes analyzingBlink {
+  0%,
+  80%,
+  100% {
+    opacity: 0.2;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .label,
+  .dot {
+    animation: none;
+  }
+}

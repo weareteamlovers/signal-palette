@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CENTRAL } from "@/lib/design-tokens";
 import { CURRENT_STOCK_NAMES, SPARE_STOCK_NAMES } from "@/data/default-portfolio";
 import type { Issue } from "@/types";
+import { AnalyzingText } from "./AnalyzingText";
 import { ColorBox } from "./ColorBox";
 import { useActiveIssue } from "./ActiveIssueContext";
 import { useAnalysis } from "./AnalysisProvider";
@@ -80,7 +81,9 @@ export function CentralIssue() {
   if (flat.length === 0) {
     return (
       <div className={styles.row}>
-        <span className={styles.text}>분석 중…</span>
+        <span className={styles.text}>
+          <AnalyzingText />
+        </span>
       </div>
     );
   }

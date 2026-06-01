@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CURRENT_STOCK_NAMES, SPARE_STOCK_NAMES } from "@/data/default-portfolio";
 import { MOBILE_MAX_ISSUES, topByImportance } from "@/lib/issues";
 import type { Issue } from "@/types";
+import { AnalyzingText } from "./AnalyzingText";
 import { useActiveIssue } from "./ActiveIssueContext";
 import { useAnalysis } from "./AnalysisProvider";
 import { ColorBox } from "./ColorBox";
@@ -83,7 +84,9 @@ export function TopTicker() {
   if (flat.length === 0) {
     return (
       <div className={styles.bar}>
-        <span className={styles.text}>분석 중…</span>
+        <span className={styles.text}>
+          <AnalyzingText />
+        </span>
       </div>
     );
   }

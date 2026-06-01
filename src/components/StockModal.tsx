@@ -152,9 +152,11 @@ export function StockModal() {
                   size={19}
                 />
               </span>
-              <span className={styles.rowText}>{issue.text}</span>
-              <span className={styles.rowTime}>
-                {mounted && issue.createdAt ? formatKst(issue.createdAt) : "-"}
+              <span className={styles.rowContent}>
+                <span className={styles.rowText}>{issue.text}</span>
+                <span className={styles.rowTime}>
+                  {mounted && issue.createdAt ? formatKst(issue.createdAt) : "-"}
+                </span>
               </span>
             </div>
           ))}

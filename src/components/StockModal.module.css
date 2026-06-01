@@ -133,7 +133,10 @@
 .timeline {
   position: relative;
   flex: 1 1 auto;
-  overflow-y: auto;
+  /* Clip horizontally (rows are width-bounded so they wrap, never overflow),
+     scroll vertically. Avoids the overflow-y:auto → overflow-x:auto gotcha
+     that produced a stray horizontal scrollbar when a date ran long. */
+  overflow: hidden auto;
 }
 
 /* Inner content sizer — gives the absolute children something to push against
@@ -155,27 +158,39 @@
   background: #ffffff;
 }
 
-/* Row container — box + text + timestamp. timestamp bottom-aligns to text
-   bottom (align-items: flex-end) per user feedback on §14-6 timestamp pos. */
+/* Row container — color box + (text + timestamp). The row is bounded to the
+   modal width (left 27, right 14) so long content wraps instead of overflowing
+   horizontally. The box top-aligns with the first text line. */
 .row {
   position: absolute;
   left: 27px; /* 356 - 329 */
+  right: 14px; /* 621 - 607 — keeps text+date inside the modal */
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
 }
 
 .rowBoxWrap {
   display: inline-flex;
+  flex: 0 0 auto;
+}
+
+/* Text + timestamp share one inline flow so the date trails the end of the
+   last line. When the text is long it wraps to a second line and the date
+   sits at the end of line 2 with the same 8px gap. */
+.rowContent {
+  margin-left: 12px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .rowText {
-  margin-left: 12px;
   font-family: var(--font-base);
   font-weight: 600;
   font-size: 16px;
   line-height: 19px;
   color: #ffffff;
-  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 .rowTime {
@@ -183,7 +198,7 @@
   font-family: var(--font-base);
   font-weight: 600;
   font-size: 12px;
-  line-height: 14px;
+  line-height: 19px;
   color: #e5e5e5;
   white-space: nowrap;
 }
