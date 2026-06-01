@@ -84,11 +84,12 @@ export async function listInUseStockNames(): Promise<string[]> {
   return [...set].filter((n) => n.trim() !== "");
 }
 
-/** Step 4c-7: among `names`, the ones whose cached analysis is older than
- *  `olderThanMs` (or absent entirely), coldest first, capped at `limit`. */
+/** Step 4c-7: among `names`, the ones whose cached analysis is older than that
+ *  stock's own threshold (`thresholdMsFor`, per-market) — or absent entirely —
+ *  coldest first, capped at `limit`. */
 export async function selectStaleStockNames(
   names: string[],
-  olderThanMs: number,
+  thresholdMsFor: (name: string) => number,
   limit: number,
 ): Promise<string[]> {
   const supabase = serviceClient();
@@ -105,7 +106,7 @@ export async function selectStaleStockNames(
     }
     return names
       .map((n) => ({ n, t: fetchedAt.get(n) ?? 0 })) // missing → 0 = coldest
-      .filter((x) => now - x.t >= olderThanMs)
+      .filter((x) => now - x.t >= thresholdMsFor(x.n))
       .sort((a, b) => a.t - b.t)
       .slice(0, limit)
       .map((x) => x.n);

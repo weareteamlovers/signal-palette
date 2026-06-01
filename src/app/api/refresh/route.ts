@@ -5,12 +5,13 @@
 // instead of triggering OpenAI on load.
 
 import { NextResponse } from "next/server";
+import { marketOf } from "@/data/stock-catalog";
 import { CACHE_MAX_ISSUES, computeStock } from "@/lib/analyze";
 import {
   REFRESH_MODE,
   SCHEDULE,
-  desiredIntervalMs,
-  isActiveWindow,
+  activeMarkets,
+  desiredIntervalMsFor,
 } from "@/lib/refresh-schedule";
 import {
   listInUseStockNames,
@@ -31,9 +32,12 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  const now = new Date();
   const names = await listInUseStockNames();
-  const intervalMs = desiredIntervalMs();
-  const stale = await selectStaleStockNames(names, intervalMs, SCHEDULE.batchSize);
+  // Per-market staleness: each stock uses its own market's cadence (fast only
+  // while that market is open), so KR and US refresh on independent clocks.
+  const thresholdFor = (name: string) => desiredIntervalMsFor(marketOf(name), now);
+  const stale = await selectStaleStockNames(names, thresholdFor, SCHEDULE.batchSize);
 
   const settled = await Promise.allSettled(
     stale.map(async (name) => {
@@ -47,8 +51,7 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     mode: REFRESH_MODE,
-    active: isActiveWindow(),
-    intervalMin: intervalMs / 60000,
+    activeMarkets: activeMarkets(now),
     candidates: names.length,
     refreshed,
     failed,

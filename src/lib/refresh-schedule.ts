@@ -4,22 +4,24 @@
 //  every 5 min (vercel.json); this policy decides how *fresh* each stock must
 //  be on a given tick, so the effective cadence lives here — not in cron.
 //
-//  Why code (not a cron expression)? Market-hours windows, weekends, holidays,
-//  and DST can't be expressed in a single cron line. The 5-min tick is just a
-//  heartbeat; this file is the real knob.
+//  PER-MARKET: a stock refreshes at `activeIntervalMin` only while ITS OWN
+//  market is open, else `idleIntervalMin`. So during Korean hours only KR
+//  stocks go fast (US slow), and vice-versa during US hours — cheaper than
+//  refreshing everything fast all weekday.
 // ════════════════════════════════════════════════════════════════════════
 
+import type { Market } from "@/data/stock-catalog";
+
 /** "test" → refresh at most every `testIntervalMin`, ignoring market hours.
- *  "live" → market-aware: active window = `activeIntervalMin`, else `idleIntervalMin`.
- *  Default "test". Flip to "live" after deploy, or set env REFRESH_MODE=live
- *  in Vercel to switch without a code edit. */
+ *  "live" → market-aware (per stock's market). Default "test". Flip to "live"
+ *  after deploy, or set env REFRESH_MODE=live in Vercel to switch w/o a code edit. */
 export const REFRESH_MODE: "test" | "live" =
   process.env.REFRESH_MODE === "live" ? "live" : "test";
 
 export const SCHEDULE = {
-  /** Pre-market −1h ~ after-hours close (see MARKETS): refresh this often. */
+  /** While the stock's market is open (pre-market −1h ~ after-hours close). */
   activeIntervalMin: 5,
-  /** Outside market hours, weekends, holidays. */
+  /** While the stock's market is closed (and weekends/holidays). */
   idleIntervalMin: 30,
   /** Test mode: refresh at most this often (default = every 2 days). */
   testIntervalMin: 2 * 24 * 60,
@@ -27,24 +29,23 @@ export const SCHEDULE = {
   batchSize: 5,
 };
 
-/** "Active" trading window per market, in that market's LOCAL time (minutes
- *  from midnight). DST is handled automatically via the IANA timeZone. The
- *  overall active window is the UNION of these. Edit the hours to taste.
+/** Each market's "active" window in LOCAL time (minutes from midnight). DST is
+ *  handled automatically via the IANA timeZone. Edit the hours to taste.
  *   - US: pre-market opens 04:00 ET → −1h = 03:00; after-hours close = 20:00 ET
  *   - KR: pre-market call ~08:30 KST → −1h = 07:30; after-hours close ~18:00 KST */
-const MARKETS: ReadonlyArray<{ tz: string; startMin: number; endMin: number }> = [
-  { tz: "America/New_York", startMin: 3 * 60, endMin: 20 * 60 },
-  { tz: "Asia/Seoul", startMin: 7 * 60 + 30, endMin: 18 * 60 },
-];
+const MARKET_WINDOWS: Record<Market, { tz: string; startMin: number; endMin: number }> = {
+  US: { tz: "America/New_York", startMin: 3 * 60, endMin: 20 * 60 },
+  KR: { tz: "Asia/Seoul", startMin: 7 * 60 + 30, endMin: 18 * 60 },
+};
 
-/** Market holidays as local YYYY-MM-DD per timezone. On a listed date that
- *  market is treated as closed (idle cadence). A missing entry just means the
- *  market stays at active cadence that day — harmless, so maintain as needed. */
-const HOLIDAYS: Record<string, ReadonlySet<string>> = {
-  "America/New_York": new Set([
+/** Market holidays as local YYYY-MM-DD. On a listed date that market is treated
+ *  as closed (idle cadence). A missing entry just keeps that market on active
+ *  cadence — harmless, so maintain as needed. */
+const HOLIDAYS: Record<Market, ReadonlySet<string>> = {
+  US: new Set([
     // "2026-01-01", "2026-07-03", "2026-12-25", ...
   ]),
-  "Asia/Seoul": new Set([
+  KR: new Set([
     // "2026-01-01", ...
   ]),
 };
@@ -68,26 +69,28 @@ function localParts(now: Date, tz: string): { weekday: string; minutes: number; 
   return { weekday: get("weekday"), minutes, ymd };
 }
 
-function marketActive(now: Date, m: (typeof MARKETS)[number]): boolean {
-  const { weekday, minutes, ymd } = localParts(now, m.tz);
+/** True if `market` is in its active trading window right now. */
+export function marketActiveNow(market: Market, now: Date = new Date()): boolean {
+  const w = MARKET_WINDOWS[market];
+  const { weekday, minutes, ymd } = localParts(now, w.tz);
   if (weekday === "Sat" || weekday === "Sun") return false;
-  if (HOLIDAYS[m.tz]?.has(ymd)) return false;
-  return minutes >= m.startMin && minutes <= m.endMin;
+  if (HOLIDAYS[market].has(ymd)) return false;
+  return minutes >= w.startMin && minutes <= w.endMin;
 }
 
-/** True if any market is in its active window right now. */
-export function isActiveWindow(now: Date = new Date()): boolean {
-  return MARKETS.some((m) => marketActive(now, m));
-}
-
-/** Required freshness (ms) for this tick: stocks cached longer ago than this
- *  are eligible for refresh. */
-export function desiredIntervalMs(now: Date = new Date()): number {
+/** Required freshness (ms) for a stock in `market` on this tick: cached longer
+ *  ago than this → eligible for refresh. */
+export function desiredIntervalMsFor(market: Market, now: Date = new Date()): number {
   const min =
     REFRESH_MODE === "test"
       ? SCHEDULE.testIntervalMin
-      : isActiveWindow(now)
+      : marketActiveNow(market, now)
         ? SCHEDULE.activeIntervalMin
         : SCHEDULE.idleIntervalMin;
   return min * 60 * 1000;
+}
+
+/** Markets currently in their active window (for logging/response). */
+export function activeMarkets(now: Date = new Date()): Market[] {
+  return (Object.keys(MARKET_WINDOWS) as Market[]).filter((m) => marketActiveNow(m, now));
 }
