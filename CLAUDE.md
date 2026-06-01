@@ -345,7 +345,22 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
       2. **출처 품질 + 요약 규칙**: 무관/홍보성 문장(예: "콴타 서비시스 크루즈 여행") 차단. `SOURCE_QUALITY_RULE` (공신력 있는 증시·경제 뉴스만, 광고/여행/블로그/동명이인 무관 내용 제외) + `SUMMARY_RULE` (헤드라인 그대로 복사 금지, 본문 함축 한국어 요약) 추가. gpt-4o-mini 한계라 프롬프트가 유일한 레버.
       3. **모달 가로 스크롤 제거 + 2줄 줄바꿈**: `StockModal` 행을 `.rowBoxWrap` + `.rowContent`(텍스트+날짜 inline 흐름) 로 재구성. `.row` 를 `left:27 / right:14` 로 modal 폭에 bound, `.rowText` 가 `word-break:keep-all`+`overflow-wrap:anywhere` 로 2줄까지 wrap, 날짜는 inline 이라 **마지막 줄 끝**에 8px gap 으로 trail. `.timeline { overflow: hidden auto }` 로 overflow-y→x:auto gotcha 차단. §14-6 노트 갱신.
       4. **분석 중 placeholder 교체**: "분석 중…" → "팀사랑꾼들 AI가 열심히 분석중이에요". 신규 공유 컴포넌트 `AnalyzingText`(+ `.module.css`) — label 은은한 opacity pulse + 점 3개 sequential blink, `prefers-reduced-motion` 가드. `CentralIssue`(desktop) / `TopTicker`(tablet·mobile) 양쪽 placeholder 에 사용. `npm run build` ✅, dev SSR `GET / 200`.
-- **Step 4c (Planned)**: 뉴스 어댑터 (Naver / Finnhub / Yahoo / Google RSS) + `pg_cron` + Supabase Realtime.
+- **Step 4c 🚧 (착수 2026-06-01)**: 뉴스 어댑터 파이프라인. **핵심 전환**: `web_search` 폐기 → 어댑터가 공신력 있는 API 에서 구조화된 기사를 직접 수집, GPT 는 그 기사만 입력받아 분류·요약 (출처·날짜는 기사 메타데이터 그대로 → 가짜 데이터/무관 문장 차단). **점진적 페이즈** (사용자 결정): Phase 1 = 어댑터 + GPT 분류 + DB 캐시(TTL), Phase 2 = `pg_cron`(`pg_net` 으로 refresh 엔드포인트 호출) + Supabase Realtime 푸시 (로드당 OpenAI 0콜). **소스 4종**: KR=Naver 뉴스 API(1차)+Google RSS, US=Finnhub(1차)+Yahoo+Google RSS. 시장 라우팅은 `src/data/stock-catalog.ts` 의 `market`/`ticker`.
+  - **Step 4c Decisions log**:
+
+    | 결정 | 값 |
+    |---|---|
+    | web_search 처리 | **폐기**. GPT 는 어댑터가 준 실제 기사만 분류/요약 (검색 X) |
+    | 페이즈 | 점진적 — Phase 1(어댑터+분류+캐시) → Phase 2(pg_cron+Realtime) |
+    | 소스 | Naver(KR 1차) / Finnhub(US 1차) / Google RSS(키 없음, 한·미 보조) / Yahoo(최하 우선, 생략 가능) |
+    | 시장 라우팅 | `stock-catalog.ts`: KR→Naver+Google(한글명 쿼리), US→Finnhub+Yahoo(ticker)+Google. 미지 종목은 KR default |
+    | US ticker | 4c 는 카탈로그에 직접 부여(부트스트랩). 동적 해석은 4e |
+    | DB 캐시 | `stock_analysis` (stock_name PK, issues/overall jsonb, fetched_at). anon select, service-role write (RLS). portfolio overall 은 캐시된 종목으로 재산출 |
+    | API 키 | 사용자 미보유 → `.env.example` 슬롯 + 발급 가이드 제공. Google RSS(키 없음)부터 구현 |
+
+  - **4c 서브태스크**: 4c-1 타입·카탈로그·env ✅ / 4c-2 Naver+Google RSS 어댑터 (Google ✅, Naver 키 대기) / 4c-3 Finnhub+Yahoo 어댑터 / 4c-4 소스 라우터+병합·dedup / 4c-5 GPT 분류 프롬프트(web_search 제거)+`/api/analyze` 배선(플래그) / 4c-6 `stock_analysis` 마이그레이션+read-through 캐시 / 4c-7 pg_cron refresh(Phase 2) / 4c-8 클라 Realtime 구독(Phase 2)
+    - **4c-1 ✅ (2026-06-01)**: `src/data/stock-catalog.ts` 신설 (`STOCK_CATALOG` = {name, market, ticker?} 40종목, KR 15 + US 25 with ticker) + `metaOf`/`marketOf`/`tickerOf` 헬퍼. `stock-master.ts` 는 `STOCK_CATALOG.map(name)` 로 파생 (단일 소스, 드롭다운 회귀 0). `src/lib/news/types.ts` (`Article`/`Market`/`AdapterContext`/`NewsAdapter`). `.env.example` 에 `NAVER_CLIENT_ID`/`NAVER_CLIENT_SECRET`/`FINNHUB_API_KEY`/`RAPIDAPI_KEY` 슬롯 + 발급 가이드 주석. `npm run build` ✅.
+    - **4c-2 (Google RSS ✅, Naver 대기)**: `src/lib/news/google-rss.ts` — 키 없는 Google News RSS 어댑터 (`news.google.com/rss/search?q=<한글명> when:Nd&hl=ko&gl=KR`). `parseGoogleRss(xml, recencyDays, nowMs)` 가 `<item>` 정규식 파싱 → 제목(CDATA/엔티티 디코드, " - 매체명" 접미사 제거), link, source, pubDate(ISO), description(태그 제거 요약). 무날짜·stale 기사 drop. 실패 시 `[]` 반환 (라우터가 부분 성공 집계). 파서 로직 단위 검증 완료. Naver 어댑터는 키 발급 후.
 - **Step 4d (Planned)**: 모바일 Top-10 필터 + `createdAt` 기반 pop scoring.
 - **Step 4e (Planned, 신설)**: 종목 검색 API (한글 → Naver 자동완성, 영문 → Finnhub `/search` 라우팅 + KRX 정적 fallback). 4a 의 fixture 를 실제 API 로 교체.
 
