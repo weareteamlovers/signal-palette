@@ -3,6 +3,7 @@
 // which must never reach the browser bundle.
 
 import OpenAI from "openai";
+import type { Article } from "@/lib/news/types";
 import type { Intensity, Issue, OverallSignal, Signal, Stock } from "@/types";
 
 const client = new OpenAI();
@@ -32,8 +33,9 @@ const DEDUP_RULE = `같은 사건의 여러 측면을 별개 이슈로 나열하
 절대 동일하거나 매우 유사한 문장을 두 개 이상 출력하지 마세요. 같은 기사·같은 사건은 단 하나의 이슈로만 표현합니다.`;
 
 /** Recency window for stock issues. Anything older is dropped server-side
- *  (when the issue carries a parseable date) regardless of what GPT returns. */
-const RECENCY_DAYS = 7;
+ *  (when the issue carries a parseable date) regardless of what GPT returns.
+ *  Exported so the news adapters query the same window. */
+export const RECENCY_DAYS = 7;
 
 const RECENCY_RULE = `오직 최근 ${RECENCY_DAYS}일 이내에 보도된 이슈만 포함하세요. 그보다 오래된 기사나 이슈는 절대 포함하지 마세요. 각 이슈의 createdAt 도 반드시 이 기간 안이어야 합니다.`;
 
@@ -238,6 +240,49 @@ function normalizeOverall(raw: unknown): OverallSignal | null {
   return { signal: o.signal, intensity };
 }
 
+/** Parse GPT's text output into a JSON object (stripping ``` fences). */
+function parseGptObject(text: string, label: string): Record<string, unknown> {
+  const raw = extractJson(text);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(`GPT response for "${label}" was not valid JSON: ${raw.slice(0, 200)}`);
+  }
+  if (!parsed || typeof parsed !== "object") {
+    throw new Error(`GPT response for "${label}" was not an object`);
+  }
+  return parsed as Record<string, unknown>;
+}
+
+/** Shared post-processing for both the web_search and news-adapter paths:
+ *  normalize → recency filter → dedupe → 7-bucket sort → slice → unique
+ *  importance, plus the stock overall. */
+function finalizeStockResult(
+  obj: Record<string, unknown>,
+  label: string,
+  maxIssues: number,
+  nowMs: number,
+): { issues: Issue[]; overall: OverallSignal } {
+  const rawIssues = Array.isArray(obj.issues) ? obj.issues : [];
+  const normalized = rawIssues
+    .map(normalizeIssue)
+    .filter((x): x is Issue => x !== null);
+  // Server-side safety nets — the prompt rules aren't always honored:
+  //   1) drop issues older than the recency window (when dated)
+  //   2) collapse duplicate / near-duplicate issues
+  const recent = filterRecent(normalized, nowMs);
+  const deduped = dedupeIssues(recent);
+  const issues = sortByBucket(deduped).slice(0, maxIssues);
+  // Re-rank importance over the kept set so it's a unique 1..N (Step 4b).
+  assignUniqueImportance(issues);
+  const overall = normalizeOverall(obj.overall);
+  if (!overall) {
+    throw new Error(`GPT response for "${label}" missing valid overall`);
+  }
+  return { issues, overall };
+}
+
 /** Analyze a single stock: web_search the last 7 days of KR/US market news,
  *  then return up to `maxIssues` sorted issues and a stock-level overall.
  *  maxIssues = 20 on desktop/tablet (10×2 grid) and 10 on mobile (5×2 grid).
@@ -285,34 +330,68 @@ ${STOCK_SCHEMA_HINT}
     input: prompt,
   });
 
-  const raw = extractJson(response.output_text);
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new Error(`GPT response for "${stockName}" was not valid JSON: ${raw.slice(0, 200)}`);
+  const obj = parseGptObject(response.output_text, stockName);
+  return finalizeStockResult(obj, stockName, maxIssues, now.getTime());
+}
+
+/** Classify a pre-fetched list of real articles into issues (Step 4c). No
+ *  web_search — GPT may use ONLY the supplied articles, so createdAt/source
+ *  come from real article metadata (no hallucinated dates/outlets). An empty
+ *  article list yields empty issues + a neutral overall (honest "no recent
+ *  news" rather than fake mock data). Throws on unparseable GPT output. */
+export async function classifyArticles(
+  stockName: string,
+  articles: Article[],
+  maxIssues = 20,
+): Promise<{ issues: Issue[]; overall: OverallSignal }> {
+  if (articles.length === 0) {
+    return { issues: [], overall: { signal: "neutral", intensity: "mid" } };
   }
-  if (!parsed || typeof parsed !== "object") {
-    throw new Error(`GPT response for "${stockName}" was not an object`);
-  }
-  const obj = parsed as Record<string, unknown>;
-  const rawIssues = Array.isArray(obj.issues) ? obj.issues : [];
-  const normalized = rawIssues
-    .map(normalizeIssue)
-    .filter((x): x is Issue => x !== null);
-  // Server-side safety nets — the prompt rules aren't always honored:
-  //   1) drop issues older than the recency window (when dated)
-  //   2) collapse duplicate / near-duplicate issues
-  const recent = filterRecent(normalized, now.getTime());
-  const deduped = dedupeIssues(recent);
-  const issues = sortByBucket(deduped).slice(0, maxIssues);
-  // Re-rank importance over the kept set so it's a unique 1..N (Step 4b).
-  assignUniqueImportance(issues);
-  const overall = normalizeOverall(obj.overall);
-  if (!overall) {
-    throw new Error(`GPT response for "${stockName}" missing valid overall`);
-  }
-  return { issues, overall };
+
+  const now = new Date();
+  const list = articles
+    .slice(0, 25)
+    .map((a, i) => {
+      const summary = a.summary ? ` — ${a.summary.slice(0, 160)}` : "";
+      return `${i + 1}. (${a.publishedAt.slice(0, 10)}) [${a.source}] ${a.title}${summary}\n   createdAt: ${a.publishedAt}\n   url: ${a.url}`;
+    })
+    .join("\n");
+
+  const prompt = `당신은 한국·미국 주식 시장 애널리스트입니다. 아래는 종목 "${stockName}"에 대해 수집된 최근 뉴스 기사 목록입니다. **오직 이 기사들만 근거로** 이슈를 도출하세요. 목록에 없는 내용·외부 지식·추측은 절대 쓰지 마세요. 코드 블록 없이 JSON 객체 하나만 출력합니다.
+
+각 이슈 텍스트는 한 문장, 최대 30자 이내(공백 포함). signal은 "positive"/"neutral"/"negative", intensity는 "strong"/"mid"/"mild". neutral의 intensity는 반드시 "mid".
+
+${SOURCE_QUALITY_RULE}
+
+${SUMMARY_RULE}
+
+각 이슈의 "createdAt" 과 "source" 는 그 이슈의 근거가 된 기사 값을 **그대로** 사용하세요 (목록의 createdAt / [출처] / url). 지어내지 마세요.
+
+${FIELD_RULE}
+
+${LANGUAGE_RULE}
+
+${DEDUP_RULE}
+
+${RESOLVED_RULE}
+
+${ISSUE_ORDER_RULE}
+
+이슈는 최대 ${maxIssues}개. 서로 다른 사건만 남기고, 종목과 무관한 기사는 버리세요. overall은 종목 전반의 종합 판단(단순 다수결 아님)입니다.
+
+기사 목록:
+${list}
+
+응답 형식:
+${STOCK_SCHEMA_HINT}`;
+
+  const response = await client.responses.create({
+    model: "gpt-4o-mini",
+    input: prompt,
+  });
+
+  const obj = parseGptObject(response.output_text, stockName);
+  return finalizeStockResult(obj, stockName, maxIssues, now.getTime());
 }
 
 /** Derive a portfolio-level overall by sending GPT the per-stock results.

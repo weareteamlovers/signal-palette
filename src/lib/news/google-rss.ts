@@ -2,6 +2,7 @@
 // stocks by querying the Korean display name. Less structured than Naver/
 // Finnhub, so it serves as a baseline + cross-market supplement.
 
+import { decodeEntities, stripTags } from "./html";
 import type { Article, AdapterContext, NewsAdapter } from "./types";
 
 const ENDPOINT = "https://news.google.com/rss/search";
@@ -21,23 +22,6 @@ function unwrapCdata(s: string): string {
 function tagContent(block: string, tag: string): string | undefined {
   const m = block.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, "i"));
   return m ? unwrapCdata(m[1]).trim() : undefined;
-}
-
-function decodeEntities(s: string): string {
-  return s
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
-    .replace(/&amp;/g, "&"); // ampersand last so the above aren't re-decoded
-}
-
-function stripTags(s: string): string {
-  // Decode first: RSS descriptions carry HTML as entities (&lt;a&gt;…), so the
-  // real tags only appear after decoding, then get stripped.
-  return decodeEntities(s).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
 /** Parse a Google News RSS feed into Articles, dropping undated or stale items. */
