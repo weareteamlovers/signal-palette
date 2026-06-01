@@ -23,7 +23,7 @@ import type { OverallSignal, Stock } from "@/types";
 
 type StockState =
   | { status: "loading" }
-  | { status: "ready"; stock: Stock; source: "live" | "mock" | "fixture" };
+  | { status: "ready"; stock: Stock; source: "live" | "mock" | "fixture" | "cache" };
 
 type OverallState =
   | { status: "loading" }
@@ -35,6 +35,9 @@ type OverallState =
 type Variant = "current" | "spare";
 
 type ViewportMode = "desktop" | "tablet" | "mobile";
+
+/** Row shape read from / pushed by the stock_analysis cache (Step 4c-8). */
+type CacheRow = { stock_name: string; issues: Stock["issues"]; overall: OverallSignal };
 
 interface AnalysisValue {
   stocks: Record<string, StockState>;
@@ -146,6 +149,11 @@ export function AnalysisProvider({ current, spare, userId, children }: ProviderP
     spare: false,
   });
   const captureLoggedRef = useRef(false);
+
+  // One browser Supabase client for the provider's lifetime — used for the
+  // warm cache read + Realtime subscription (4c-8) and portfolio upserts
+  // (4a-7). null when env is missing (graceful degradation).
+  const supabase = useMemo(() => createBrowserSupabase(), []);
 
   useEffect(() => {
     const mobileMq = window.matchMedia(MOBILE_MQ);
@@ -270,6 +278,47 @@ export function AnalysisProvider({ current, spare, userId, children }: ProviderP
     [],
   );
 
+  /** Real mode (4c-8): read warm rows from the stock_analysis cache for these
+   *  names and mark them ready; only cold names (no cached row) fall through to
+   *  /api/analyze. Without a Supabase client, computes everything. */
+  const loadRealStocks = useCallback(
+    async (names: string[], maxIssues: number, signal: AbortSignal) => {
+      if (names.length === 0) return;
+      if (!supabase) {
+        for (const n of names) fetchOneReal(n, maxIssues, signal);
+        return;
+      }
+      const cached = new Set<string>();
+      try {
+        const { data } = await supabase
+          .from("stock_analysis")
+          .select("stock_name, issues, overall")
+          .in("stock_name", names);
+        if (signal.aborted) return;
+        if (data && data.length) {
+          for (const row of data as CacheRow[]) cached.add(row.stock_name);
+          setStocks((s) => {
+            const next = { ...s };
+            for (const row of data as CacheRow[]) {
+              next[row.stock_name] = {
+                status: "ready",
+                stock: { name: row.stock_name, issues: row.issues, overall: row.overall },
+                source: "cache",
+              };
+            }
+            return next;
+          });
+        }
+      } catch {
+        // ignore — cold-compute everything below
+      }
+      for (const n of names) {
+        if (!cached.has(n)) fetchOneReal(n, maxIssues, signal);
+      }
+    },
+    [supabase, fetchOneReal],
+  );
+
   // Initial load — runs once on mount. NOT re-run when the viewport flips
   // (mobile trims at render via topByImportance) nor when names change (those
   // are handled incrementally by `updatePortfolio`).
@@ -304,11 +353,42 @@ export function AnalysisProvider({ current, spare, userId, children }: ProviderP
       };
     }
 
-    for (const name of allNames) {
-      fetchOneReal(name, maxIssues, aborter.signal);
-    }
+    // Real mode (4c-8): warm-read the cache + subscribe to Realtime; only cold
+    // stocks hit /api/analyze. Cron (4c-7) keeps the cache fresh and pushes
+    // updates through the subscription below.
+    void loadRealStocks(allNames, maxIssues, aborter.signal);
 
-    return () => aborter.abort();
+    if (!supabase) {
+      return () => aborter.abort();
+    }
+    const channel = supabase
+      .channel("stock_analysis_changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "stock_analysis" },
+        (payload) => {
+          const row = payload.new as Partial<CacheRow>;
+          if (!row?.stock_name || !row.issues || !row.overall) return;
+          const name = row.stock_name;
+          const issues = row.issues;
+          const overall = row.overall;
+          // Only patch a stock we're currently showing.
+          setStocks((s) =>
+            name in s
+              ? {
+                  ...s,
+                  [name]: { status: "ready", stock: { name, issues, overall }, source: "cache" },
+                }
+              : s,
+          );
+        },
+      )
+      .subscribe();
+
+    return () => {
+      aborter.abort();
+      supabase.removeChannel(channel);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -353,21 +433,19 @@ export function AnalysisProvider({ current, spare, userId, children }: ProviderP
 
       // 4a-7: persist to the `portfolios` table when the user is logged in.
       // Fire-and-forget — UI doesn't block on the network.
-      if (userId) {
-        const supabase = createBrowserSupabase();
-        if (supabase) {
-          void upsertOwnPortfolio(supabase, userId, variant, newNames);
-        }
+      if (userId && supabase) {
+        void upsertOwnPortfolio(supabase, userId, variant, newNames);
       }
 
       // Fetch / reveal added stocks. Fixture mode does it immediately (no
-      // stagger — only 1–8 new at most). Real mode fires parallel requests.
+      // stagger — only 1–8 new at most). Real mode warm-reads cache then
+      // computes cold ones (4c-8).
       if (added.length > 0) {
         if (USE_FIXTURE) {
           for (const n of added) revealOneFixture(n, maxIssues);
         } else {
           const aborter = new AbortController();
-          for (const n of added) fetchOneReal(n, maxIssues, aborter.signal);
+          void loadRealStocks(added, maxIssues, aborter.signal);
           // Note: this aborter is intentionally never aborted from outside.
           // Mid-flight cancellation on subsequent edits would orphan
           // promises; we accept the cheap leak of letting them resolve.
@@ -378,7 +456,8 @@ export function AnalysisProvider({ current, spare, userId, children }: ProviderP
       currentNames,
       spareNames,
       userId,
-      fetchOneReal,
+      supabase,
+      loadRealStocks,
       revealOneFixture,
     ],
   );
