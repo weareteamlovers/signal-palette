@@ -5,6 +5,7 @@
 // keeps working (just recomputes every time) until the migration is applied.
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { CURRENT_STOCK_NAMES, SPARE_STOCK_NAMES } from "@/data/default-portfolio";
 import type { Issue, OverallSignal } from "@/types";
 
 const TABLE = "stock_analysis";
@@ -61,5 +62,54 @@ export async function writeCachedAnalysis(
     if (error) console.warn(`[cache] write failed for "${stockName}": ${error.message}`);
   } catch (e) {
     console.warn(`[cache] write threw for "${stockName}"`, e);
+  }
+}
+
+/** Step 4c-7: stocks the scheduled refresh should keep warm — every name in
+ *  any user's portfolio plus the default 16. Falls back to the defaults alone
+ *  when Supabase env is missing or the query fails. */
+export async function listInUseStockNames(): Promise<string[]> {
+  const set = new Set<string>([...CURRENT_STOCK_NAMES, ...SPARE_STOCK_NAMES]);
+  const supabase = serviceClient();
+  if (supabase) {
+    try {
+      const { data } = await supabase.from("portfolios").select("stocks");
+      for (const row of (data ?? []) as Array<{ stocks: string[] | null }>) {
+        for (const n of row.stocks ?? []) set.add(n);
+      }
+    } catch {
+      // ignore — defaults already seeded
+    }
+  }
+  return [...set].filter((n) => n.trim() !== "");
+}
+
+/** Step 4c-7: among `names`, the ones whose cached analysis is older than
+ *  `olderThanMs` (or absent entirely), coldest first, capped at `limit`. */
+export async function selectStaleStockNames(
+  names: string[],
+  olderThanMs: number,
+  limit: number,
+): Promise<string[]> {
+  const supabase = serviceClient();
+  if (!supabase) return names.slice(0, limit);
+  const now = Date.now();
+  try {
+    const { data } = await supabase
+      .from(TABLE)
+      .select("stock_name, fetched_at")
+      .in("stock_name", names);
+    const fetchedAt = new Map<string, number>();
+    for (const row of (data ?? []) as Array<{ stock_name: string; fetched_at: string }>) {
+      fetchedAt.set(row.stock_name, new Date(row.fetched_at).getTime());
+    }
+    return names
+      .map((n) => ({ n, t: fetchedAt.get(n) ?? 0 })) // missing → 0 = coldest
+      .filter((x) => now - x.t >= olderThanMs)
+      .sort((a, b) => a.t - b.t)
+      .slice(0, limit)
+      .map((x) => x.n);
+  } catch {
+    return names.slice(0, limit);
   }
 }
