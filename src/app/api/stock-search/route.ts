@@ -9,6 +9,9 @@ import { writeStockMeta } from "@/lib/supabase/analysis-cache";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+// Run in Seoul — Naver autocomplete can geo-block non-KR cloud IPs, and our
+// Supabase (stock_meta) is in Seoul too. (Vercel Pro.)
+export const preferredRegion = "icn1";
 
 export async function GET(req: Request) {
   const q = (new URL(req.url).searchParams.get("q") ?? "").trim();

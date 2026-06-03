@@ -28,7 +28,16 @@ export async function searchStocks(query: string): Promise<StockMeta[]> {
   const url = `${ENDPOINT}?q=${encodeURIComponent(q)}&target=stock`;
   try {
     const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; SignalPalette/1.0)" },
+      // Browser-like headers — ac.stock.naver.com (unofficial) can reject bare
+      // requests. Combined with the route's Seoul region, this keeps it from
+      // blocking non-KR cloud IPs.
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+        Referer: "https://m.stock.naver.com/",
+        Accept: "application/json, text/plain, */*",
+        "Accept-Language": "ko-KR,ko;q=0.9",
+      },
       cache: "no-store",
     });
     if (!res.ok) return [];
