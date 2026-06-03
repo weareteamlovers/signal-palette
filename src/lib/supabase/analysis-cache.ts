@@ -156,3 +156,28 @@ export async function readStockMeta(
     return null;
   }
 }
+
+/** Step 4e: batch market/ticker lookup (for the cron cadence). Names absent
+ *  from the result keep the caller's fallback (KR). */
+export async function readStockMetaMany(
+  names: string[],
+): Promise<Map<string, { market: Market; ticker?: string }>> {
+  const map = new Map<string, { market: Market; ticker?: string }>();
+  const supabase = serviceClient();
+  if (!supabase || names.length === 0) return map;
+  try {
+    const { data } = await supabase
+      .from(META_TABLE)
+      .select("name, market, ticker")
+      .in("name", names);
+    for (const row of (data ?? []) as Array<{ name: string; market: string; ticker: string | null }>) {
+      map.set(row.name, {
+        market: row.market === "US" ? "US" : "KR",
+        ticker: row.ticker ?? undefined,
+      });
+    }
+  } catch {
+    // ignore — caller falls back to KR
+  }
+  return map;
+}

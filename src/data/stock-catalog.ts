@@ -68,16 +68,8 @@ export const STOCK_CATALOG: readonly StockMeta[] = [
 
 const BY_NAME = new Map(STOCK_CATALOG.map((s) => [s.name, s]));
 
+/** Catalog entry for a name (market + US ticker), or undefined if not one of
+ *  the static 40. Callers fall back to stock_meta (search-populated) then KR. */
 export function metaOf(name: string): StockMeta | undefined {
   return BY_NAME.get(name);
-}
-
-/** Market for a name. Unknown names default to KR — Naver/Google RSS query by
- *  the Korean name works regardless, and we have no US ticker for them. */
-export function marketOf(name: string): Market {
-  return BY_NAME.get(name)?.market ?? "KR";
-}
-
-export function tickerOf(name: string): string | undefined {
-  return BY_NAME.get(name)?.ticker;
 }

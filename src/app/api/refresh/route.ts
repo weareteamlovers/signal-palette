@@ -5,7 +5,7 @@
 // instead of triggering OpenAI on load.
 
 import { NextResponse } from "next/server";
-import { marketOf } from "@/data/stock-catalog";
+import { metaOf, type Market } from "@/data/stock-catalog";
 import { CACHE_MAX_ISSUES, refreshStock } from "@/lib/analyze";
 import {
   REFRESH_MODE,
@@ -15,6 +15,7 @@ import {
 } from "@/lib/refresh-schedule";
 import {
   listInUseStockNames,
+  readStockMetaMany,
   selectStaleStockNames,
   writeCachedAnalysis,
 } from "@/lib/supabase/analysis-cache";
@@ -35,8 +36,13 @@ export async function GET(req: Request) {
   const now = new Date();
   const names = await listInUseStockNames();
   // Per-market staleness: each stock uses its own market's cadence (fast only
-  // while that market is open), so KR and US refresh on independent clocks.
-  const thresholdFor = (name: string) => desiredIntervalMsFor(marketOf(name), now);
+  // while that market is open). Resolve market like the news router: static
+  // catalog (sync) → stock_meta (search-populated) → KR default — so searched
+  // US stocks refresh on US hours, not KR (Step 4e).
+  const metaMap = await readStockMetaMany(names.filter((n) => !metaOf(n)));
+  const marketFor = (name: string): Market =>
+    metaOf(name)?.market ?? metaMap.get(name)?.market ?? "KR";
+  const thresholdFor = (name: string) => desiredIntervalMsFor(marketFor(name), now);
   const stale = await selectStaleStockNames(names, thresholdFor, SCHEDULE.batchSize);
 
   const settled = await Promise.allSettled(
