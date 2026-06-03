@@ -2,7 +2,8 @@
 // parallel, and merges + dedupes the results. Each adapter self-guards on
 // missing keys (returns []), so an unconfigured source just drops out.
 
-import { marketOf, tickerOf } from "@/data/stock-catalog";
+import { metaOf } from "@/data/stock-catalog";
+import { readStockMeta } from "@/lib/supabase/analysis-cache";
 import { finnhubAdapter } from "./finnhub";
 import { googleNewsAdapter } from "./google-rss";
 import { naverAdapter } from "./naver";
@@ -40,6 +41,19 @@ function dedupeArticles(articles: Article[]): Article[] {
   return out;
 }
 
+/** Resolve a stock's market/ticker: static catalog first (sync, the default
+ *  40), then the search-populated stock_meta table (Step 4e), then KR default
+ *  (Naver+Google by Korean name still works for any name). */
+async function resolveMeta(
+  name: string,
+): Promise<{ market: Market; ticker?: string }> {
+  const cat = metaOf(name);
+  if (cat) return { market: cat.market, ticker: cat.ticker };
+  const stored = await readStockMeta(name);
+  if (stored) return stored;
+  return { market: "KR" };
+}
+
 /** Fetch + merge recent articles for a stock from all configured sources for
  *  its market. Newest first; capped at MAX_ARTICLES. Never throws — a failed
  *  source contributes nothing. */
@@ -47,11 +61,11 @@ export async function fetchArticles(
   stockName: string,
   recencyDays: number,
 ): Promise<Article[]> {
-  const market = marketOf(stockName);
+  const { market, ticker } = await resolveMeta(stockName);
   const ctx: AdapterContext = {
     name: stockName,
     market,
-    ticker: tickerOf(stockName),
+    ticker,
     recencyDays,
   };
 

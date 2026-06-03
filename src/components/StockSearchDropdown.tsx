@@ -51,20 +51,49 @@ export function StockSearchDropdown({
   onClose,
 }: Props) {
   const [query, setQuery] = useState("");
+  const [apiResults, setApiResults] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
 
-  // Client-side includes() filter. Case-insensitive so English tickers /
-  // brand names (AMD, ibm, …) match regardless of casing. Korean is already
-  // case-insensitive at the codepoint level.
+  // Step 4e: empty query browses the static catalog; typing hits the live
+  // search API (Naver autocomplete) debounced. Stale responses are ignored
+  // via the cleanup flag.
+  useEffect(() => {
+    const q = query.trim();
+    if (q === "") {
+      setApiResults([]);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/stock-search?q=${encodeURIComponent(q)}`);
+        const data = (await res.json()) as { results?: Array<{ name: string }> };
+        if (!cancelled) setApiResults((data.results ?? []).map((r) => r.name));
+      } catch {
+        if (!cancelled) setApiResults([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [query]);
+
   const candidates = useMemo(() => {
     const used = new Set(excludeNames);
-    const q = query.trim().toLowerCase();
-    return STOCK_MASTER.filter((name) => {
-      if (used.has(name)) return false;
-      if (!q) return true;
-      return name.toLowerCase().includes(q);
+    const base = query.trim() === "" ? STOCK_MASTER : apiResults;
+    const seen = new Set<string>();
+    return base.filter((name) => {
+      if (used.has(name) || seen.has(name)) return false;
+      seen.add(name);
+      return true;
     });
-  }, [query, excludeNames]);
+  }, [query, apiResults, excludeNames]);
 
   // ESC closes the dropdown (modal stays).
   useEffect(() => {
@@ -137,7 +166,9 @@ export function StockSearchDropdown({
 
         {candidates.length === 0 ? (
           <li>
-            <p className={styles.empty}>검색 결과가 없어요</p>
+            <p className={styles.empty}>
+              {loading ? "검색 중…" : "검색 결과가 없어요"}
+            </p>
           </li>
         ) : (
           candidates.map((name) => (

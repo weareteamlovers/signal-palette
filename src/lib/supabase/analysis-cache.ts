@@ -6,9 +6,11 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { CURRENT_STOCK_NAMES, SPARE_STOCK_NAMES } from "@/data/default-portfolio";
+import type { Market, StockMeta } from "@/data/stock-catalog";
 import type { Issue, OverallSignal } from "@/types";
 
 const TABLE = "stock_analysis";
+const META_TABLE = "stock_meta";
 
 export interface CachedAnalysis {
   issues: Issue[];
@@ -112,5 +114,45 @@ export async function selectStaleStockNames(
       .map((x) => x.n);
   } catch {
     return names.slice(0, limit);
+  }
+}
+
+/** Step 4e: persist searched stocks' metadata so the news router can route
+ *  any added stock (US ticker → Finnhub). Best-effort; failures are logged. */
+export async function writeStockMeta(metas: ReadonlyArray<StockMeta>): Promise<void> {
+  const supabase = serviceClient();
+  if (!supabase || metas.length === 0) return;
+  try {
+    const rows = metas.map((m) => ({
+      name: m.name,
+      market: m.market,
+      ticker: m.ticker ?? null,
+      updated_at: new Date().toISOString(),
+    }));
+    const { error } = await supabase.from(META_TABLE).upsert(rows, { onConflict: "name" });
+    if (error) console.warn(`[stock_meta] write failed: ${error.message}`);
+  } catch (e) {
+    console.warn("[stock_meta] write threw", e);
+  }
+}
+
+/** Step 4e: market/ticker for a name from stock_meta (search-populated).
+ *  null when unknown — the news router then falls back to the KR default. */
+export async function readStockMeta(
+  name: string,
+): Promise<{ market: Market; ticker?: string } | null> {
+  const supabase = serviceClient();
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from(META_TABLE)
+      .select("market, ticker")
+      .eq("name", name)
+      .maybeSingle();
+    if (error || !data) return null;
+    const market: Market = data.market === "US" ? "US" : "KR";
+    return { market, ticker: (data.ticker as string | null) ?? undefined };
+  } catch {
+    return null;
   }
 }
