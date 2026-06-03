@@ -4,6 +4,7 @@
 
 import OpenAI from "openai";
 import type { Article } from "@/lib/news/types";
+import { stockOverallFromIssues } from "@/lib/overall";
 import type { Intensity, Issue, OverallSignal, Signal } from "@/types";
 
 const client = new OpenAI();
@@ -38,6 +39,10 @@ const DEDUP_RULE = `같은 사건의 여러 측면을 별개 이슈로 나열하
  *  (when the issue carries a parseable date) regardless of what GPT returns.
  *  Exported so the news adapters query the same window. */
 export const RECENCY_DAYS = 7;
+
+/** Step 4d: how long an accumulated issue stays in the store before it ages
+ *  out, even if the 20 slots aren't full. Caps staleness of small-cap cards. */
+const ISSUE_RETENTION_DAYS = 21;
 
 const RECENCY_RULE = `오직 최근 ${RECENCY_DAYS}일 이내에 보도된 이슈만 포함하세요. 그보다 오래된 기사나 이슈는 절대 포함하지 마세요. 각 이슈의 createdAt 도 반드시 이 기간 안이어야 합니다.`;
 
@@ -224,22 +229,14 @@ function dedupeIssues(issues: Issue[]): Issue[] {
  *  window. Undated or unparseable-date issues are kept — we can't judge them,
  *  and GPT often omits the date for genuinely recent items. The 1-day grace
  *  absorbs timezone rounding. */
-function filterRecent(issues: Issue[], nowMs: number): Issue[] {
-  const cutoff = nowMs - (RECENCY_DAYS + 1) * 24 * 60 * 60 * 1000;
+function filterRecent(issues: Issue[], nowMs: number, days: number = RECENCY_DAYS + 1): Issue[] {
+  const cutoff = nowMs - days * 24 * 60 * 60 * 1000;
   return issues.filter((i) => {
     if (!i.createdAt) return true;
     const ms = Date.parse(i.createdAt);
     if (Number.isNaN(ms)) return true;
     return ms >= cutoff;
   });
-}
-
-function normalizeOverall(raw: unknown): OverallSignal | null {
-  if (!raw || typeof raw !== "object") return null;
-  const o = raw as Record<string, unknown>;
-  if (!isSignal(o.signal) || !isIntensity(o.intensity)) return null;
-  const intensity = o.signal === "neutral" ? "mid" : o.intensity;
-  return { signal: o.signal, intensity };
 }
 
 /** Parse GPT's text output into a JSON object (stripping ``` fences). */
@@ -262,7 +259,6 @@ function parseGptObject(text: string, label: string): Record<string, unknown> {
  *  importance, plus the stock overall. */
 function finalizeStockResult(
   obj: Record<string, unknown>,
-  label: string,
   maxIssues: number,
   nowMs: number,
 ): { issues: Issue[]; overall: OverallSignal } {
@@ -278,11 +274,9 @@ function finalizeStockResult(
   const issues = sortByBucket(deduped).slice(0, maxIssues);
   // Re-rank importance over the kept set so it's a unique 1..N (Step 4b).
   assignUniqueImportance(issues);
-  const overall = normalizeOverall(obj.overall);
-  if (!overall) {
-    throw new Error(`GPT response for "${label}" missing valid overall`);
-  }
-  return { issues, overall };
+  // Overall is derived from the issues, not GPT (Step 4d) — consistent with
+  // the accumulating store where GPT only ever classifies the newest batch.
+  return { issues, overall: stockOverallFromIssues(issues) };
 }
 
 /** Analyze a single stock: web_search the last 7 days of KR/US market news,
@@ -333,7 +327,7 @@ ${STOCK_SCHEMA_HINT}
   });
 
   const obj = parseGptObject(response.output_text, stockName);
-  return finalizeStockResult(obj, stockName, maxIssues, now.getTime());
+  return finalizeStockResult(obj, maxIssues, now.getTime());
 }
 
 /** Classify a pre-fetched list of real articles into issues (Step 4c). No
@@ -393,7 +387,96 @@ ${STOCK_SCHEMA_HINT}`;
   });
 
   const obj = parseGptObject(response.output_text, stockName);
-  return finalizeStockResult(obj, stockName, maxIssues, now.getTime());
+  return finalizeStockResult(obj, maxIssues, now.getTime());
+}
+
+/** Refresh-path classify with accumulation (Step 4d). Given the stock's
+ *  currently-stored issues, GPT extracts NEW issues from the articles (without
+ *  repeating stored ones) and flags stored issues that are now resolved. The
+ *  server then merges: drop resolved (v2) + dedupe + 21-day retention (v1) +
+ *  keep the 20 most recent, then re-rank importance and recompute the overall.
+ *  No articles → just age/retain the existing set (no GPT call). */
+export async function classifyAndMerge(
+  stockName: string,
+  articles: Article[],
+  existing: Issue[],
+  maxIssues = 20,
+): Promise<{ issues: Issue[]; overall: OverallSignal }> {
+  const now = new Date();
+  let kept = existing;
+  let fresh: Issue[] = [];
+
+  if (articles.length > 0) {
+    const existingList =
+      existing
+        .map((it, i) => `${i + 1}. (${(it.createdAt ?? "?").slice(0, 10)}) ${it.text}`)
+        .join("\n") || "(없음)";
+    const articleList = articles
+      .slice(0, 25)
+      .map((a, i) => {
+        const summary = a.summary ? ` — ${a.summary.slice(0, 160)}` : "";
+        return `${i + 1}. (${a.publishedAt.slice(0, 10)}) [${a.source}] ${a.title}${summary}\n   createdAt: ${a.publishedAt}\n   url: ${a.url}`;
+      })
+      .join("\n");
+
+    const prompt = `당신은 한국·미국 주식 시장 애널리스트입니다. 종목 "${stockName}"의 [현재 저장된 이슈]와 [최근 기사 목록]이 주어집니다. 코드 블록 없이 JSON 객체 하나만 출력하세요.
+
+해야 할 일:
+1) [최근 기사]에서 **새 이슈**만 도출하세요. [현재 저장된 이슈]와 같은 사건은 다시 만들지 마세요(중복 금지).
+2) [현재 저장된 이슈] 중 이미 **해소·종결되어 더 이상 유효하지 않은** 것의 번호를 "resolvedExisting" 에 넣으세요(없으면 빈 배열).
+
+새 이슈는 오직 기사 내용만 근거로 합니다. 각 이슈 텍스트는 한 문장, 최대 30자 이내(공백 포함). signal/intensity/importance/createdAt/source 를 포함하고, createdAt·source 는 근거 기사 값을 그대로 쓰세요.
+
+${SOURCE_QUALITY_RULE}
+
+${SUMMARY_RULE}
+
+${FIELD_RULE}
+
+${LANGUAGE_RULE}
+
+${DEDUP_RULE}
+
+${RESOLVED_RULE}
+
+${ISSUE_ORDER_RULE}
+
+[현재 저장된 이슈]
+${existingList}
+
+[최근 기사 목록]
+${articleList}
+
+응답 형식(코드 블록 없이 객체 하나):
+{ "issues": [ { "text": "한 문장 30자 이내", "signal": "positive|neutral|negative", "intensity": "strong|mid|mild", "importance": 1, "createdAt": "2026-05-30T07:30:00Z", "source": { "name": "매체명", "url": "기사 URL" } } ], "resolvedExisting": [번호] }`;
+
+    const response = await client.responses.create({ model: "gpt-4o-mini", input: prompt });
+    const obj = parseGptObject(response.output_text, stockName);
+
+    const rawIssues = Array.isArray(obj.issues) ? obj.issues : [];
+    fresh = filterRecent(
+      rawIssues.map(normalizeIssue).filter((x): x is Issue => x !== null),
+      now.getTime(),
+    );
+
+    const resolvedRaw = Array.isArray(obj.resolvedExisting) ? obj.resolvedExisting : [];
+    const resolvedIdx = new Set(
+      resolvedRaw
+        .map((n) => (typeof n === "number" ? n - 1 : Number.NaN))
+        .filter((n) => Number.isInteger(n)),
+    );
+    kept = existing.filter((_, i) => !resolvedIdx.has(i));
+  }
+
+  // Merge: existing wins over fresh duplicates (preserves original metadata),
+  // drop anything older than the retention window, keep the 20 most recent.
+  const merged = dedupeIssues([...kept, ...fresh]);
+  const retained = filterRecent(merged, now.getTime(), ISSUE_RETENTION_DAYS);
+  retained.sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+  const issues = sortByBucket(retained.slice(0, maxIssues));
+  assignUniqueImportance(issues);
+
+  return { issues, overall: stockOverallFromIssues(issues) };
 }
 
 // Portfolio overall is no longer derived by GPT — it's computed client-side

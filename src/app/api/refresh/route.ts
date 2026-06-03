@@ -6,7 +6,7 @@
 
 import { NextResponse } from "next/server";
 import { marketOf } from "@/data/stock-catalog";
-import { CACHE_MAX_ISSUES, computeStock } from "@/lib/analyze";
+import { CACHE_MAX_ISSUES, refreshStock } from "@/lib/analyze";
 import {
   REFRESH_MODE,
   SCHEDULE,
@@ -41,7 +41,7 @@ export async function GET(req: Request) {
 
   const settled = await Promise.allSettled(
     stale.map(async (name) => {
-      const result = await computeStock(name, CACHE_MAX_ISSUES);
+      const result = await refreshStock(name, CACHE_MAX_ISSUES);
       await writeCachedAnalysis(name, result.issues, result.overall);
     }),
   );

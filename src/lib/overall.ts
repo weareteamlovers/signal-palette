@@ -1,8 +1,8 @@
 import type { Intensity, OverallSignal, Signal, Stock } from "@/types";
 
-// Step 4c-9: portfolio overall is derived client-side from the stocks'
-// overalls — no GPT call. Each stock's GPT overall maps to a signed score
-// (intensity = magnitude); the mean is rounded back to a signal/intensity band.
+// Step 4c-9 / 4d: overalls are derived from signal+intensity scores — no GPT.
+// Portfolio overall = mean of stock overalls; stock overall = mean of its
+// issues. Same scoring/banding for both.
 
 const SCORE: Record<Signal, Record<Intensity, number>> = {
   positive: { strong: 3, mid: 2, mild: 1 },
@@ -10,7 +10,7 @@ const SCORE: Record<Signal, Record<Intensity, number>> = {
   negative: { strong: -3, mid: -2, mild: -1 },
 };
 
-function scoreOf(o: OverallSignal): number {
+function scoreOf(o: { signal: Signal; intensity: Intensity }): number {
   return SCORE[o.signal][o.intensity];
 }
 
@@ -23,10 +23,23 @@ function bandOf(score: number): OverallSignal {
   return { signal: score > 0 ? "positive" : "negative", intensity };
 }
 
+function aggregate(items: ReadonlyArray<{ signal: Signal; intensity: Intensity }>): OverallSignal {
+  if (items.length === 0) return { signal: "neutral", intensity: "mid" };
+  const avg = items.reduce((sum, i) => sum + scoreOf(i), 0) / items.length;
+  return bandOf(avg);
+}
+
 /** Portfolio overall = mean of the stocks' overall scores, banded. Stronger
  *  stocks (±3) pull harder than milder ones (±1) without extra weighting. */
 export function aggregateOverall(stocks: Stock[]): OverallSignal {
-  if (stocks.length === 0) return { signal: "neutral", intensity: "mid" };
-  const avg = stocks.reduce((sum, s) => sum + scoreOf(s.overall), 0) / stocks.length;
-  return bandOf(avg);
+  return aggregate(stocks.map((s) => s.overall));
+}
+
+/** Stock overall = mean of its issues' scores, banded (Step 4d). Used because
+ *  the accumulating store means GPT only ever classifies the newest batch, so
+ *  its per-call overall wouldn't reflect the full stored set. */
+export function stockOverallFromIssues(
+  issues: ReadonlyArray<{ signal: Signal; intensity: Intensity }>,
+): OverallSignal {
+  return aggregate(issues);
 }
