@@ -4,7 +4,7 @@
 
 import OpenAI from "openai";
 import type { Article } from "@/lib/news/types";
-import type { Intensity, Issue, OverallSignal, Signal, Stock } from "@/types";
+import type { Intensity, Issue, OverallSignal, Signal } from "@/types";
 
 const client = new OpenAI();
 
@@ -394,51 +394,5 @@ ${STOCK_SCHEMA_HINT}`;
   return finalizeStockResult(obj, stockName, maxIssues, now.getTime());
 }
 
-/** Derive a portfolio-level overall by sending GPT the per-stock results.
- *  No web_search needed — this is a synthesis step. */
-export async function analyzePortfolioOverall(
-  label: string,
-  stocks: Stock[],
-): Promise<OverallSignal> {
-  const summary = stocks
-    .map(
-      (s) =>
-        `- ${s.name}: overall=${s.overall.signal}/${s.overall.intensity}, 주요 이슈: ${s.issues
-          .slice(0, 3)
-          .map((i) => `[${i.signal}/${i.intensity}] ${i.text}`)
-          .join("; ") || "(없음)"}`,
-    )
-    .join("\n");
-
-  const prompt = `다음은 "${label}"에 포함된 ${stocks.length}개 종목의 분석 결과입니다. 종목별 overall과 주요 이슈를 종합해 포트폴리오 전체에 대한 단일 종합 평가를 산출하세요. 단순 다수결이 아니라 각 종목의 가중치, 이슈의 시장 영향도, 동조성을 고려한 판단이어야 합니다.
-
-종목별 요약:
-${summary}
-
-다음 JSON 형식으로만 응답하세요(코드 블록 없이 객체 하나만):
-{ "overall": { "signal": "positive|neutral|negative", "intensity": "strong|mid|mild" } }
-
-neutral의 intensity는 반드시 "mid".`;
-
-  const response = await client.responses.create({
-    model: "gpt-4o-mini",
-    input: prompt,
-  });
-
-  const raw = extractJson(response.output_text);
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new Error(`GPT overall response for "${label}" was not valid JSON: ${raw.slice(0, 200)}`);
-  }
-  if (!parsed || typeof parsed !== "object") {
-    throw new Error(`GPT overall response for "${label}" was not an object`);
-  }
-  const obj = parsed as Record<string, unknown>;
-  const overall = normalizeOverall(obj.overall);
-  if (!overall) {
-    throw new Error(`GPT overall response for "${label}" missing valid overall`);
-  }
-  return overall;
-}
+// Portfolio overall is no longer derived by GPT — it's computed client-side
+// from the per-stock overalls (src/lib/overall.ts, Step 4c-9).

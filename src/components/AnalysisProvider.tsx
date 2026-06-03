@@ -17,6 +17,7 @@ import {
   FIXTURE_STAGGER_MS,
   USE_FIXTURE,
 } from "@/lib/feature-flags";
+import { aggregateOverall } from "@/lib/overall";
 import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
 import { upsertOwnPortfolio } from "@/lib/supabase/portfolios";
 import type { OverallSignal, Stock } from "@/types";
@@ -27,7 +28,7 @@ type StockState =
 
 type OverallState =
   | { status: "loading" }
-  | { status: "ready"; overall: OverallSignal; source: "live" | "mock" | "fixture" }
+  | { status: "ready"; overall: OverallSignal; source: "live" | "mock" | "fixture" | "computed" }
   /** All slots in the portfolio are empty (name=""), so there's nothing to
    *  fetch. PortfolioSection renders the comp box with --signal-empty. */
   | { status: "empty" };
@@ -75,11 +76,6 @@ interface ProviderProps {
   userId: string | null;
   children: ReactNode;
 }
-
-const LABELS: Record<Variant, string> = {
-  current: "현재 포트폴리오",
-  spare: "예비 포트폴리오",
-};
 
 const MOBILE_MQ = "(max-width: 767px)";
 const TABLET_MQ = "(min-width: 768px) and (max-width: 1279px)";
@@ -144,10 +140,6 @@ export function AnalysisProvider({ current, spare, userId, children }: ProviderP
     spare: { status: "loading" },
   });
 
-  const overallDispatched = useRef<Record<Variant, boolean>>({
-    current: false,
-    spare: false,
-  });
   const captureLoggedRef = useRef(false);
 
   // One browser Supabase client for the provider's lifetime — used for the
@@ -171,47 +163,6 @@ export function AnalysisProvider({ current, spare, userId, children }: ProviderP
       tabletMq.removeEventListener("change", recompute);
     };
   }, []);
-
-  const runOverallReal = useCallback(
-    (variant: Variant, stockList: Stock[], signal: AbortSignal) => {
-      overallDispatched.current[variant] = true;
-      fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "portfolio-overall",
-          label: LABELS[variant],
-          stocks: stockList,
-        }),
-        signal,
-      })
-        .then(async (r) => {
-          const data = (await r.json()) as
-            | { overall: OverallSignal }
-            | { error: string };
-          if (!r.ok || "error" in data) {
-            throw new Error("error" in data ? data.error : `HTTP ${r.status}`);
-          }
-          setOveralls((o) => ({
-            ...o,
-            [variant]: { status: "ready", overall: data.overall, source: "live" },
-          }));
-        })
-        .catch((err) => {
-          if ((err as Error).name === "AbortError") return;
-          console.warn(`[analyze] portfolio "${variant}" overall failed`, err);
-          setOveralls((o) => ({
-            ...o,
-            [variant]: {
-              status: "ready",
-              overall: { signal: "neutral", intensity: "mid" },
-              source: "mock",
-            },
-          }));
-        });
-    },
-    [],
-  );
 
   /** Fetch a single stock (real mode) and merge into `stocks`. Empty-slot
    *  names are filtered by the caller. */
@@ -331,7 +282,6 @@ export function AnalysisProvider({ current, spare, userId, children }: ProviderP
       current: { status: "loading" },
       spare: { status: "loading" },
     });
-    overallDispatched.current = { current: false, spare: false };
     captureLoggedRef.current = false;
 
     if (USE_FIXTURE) {
@@ -427,9 +377,9 @@ export function AnalysisProvider({ current, spare, userId, children }: ProviderP
       if (variant === "current") setCurrentNames(newNames);
       else setSpareNames(newNames);
 
-      // Reset overall so the next effect re-fires it for this variant.
+      // Reset overall to loading; the derive effect recomputes it once the
+      // post-edit ready set settles.
       setOveralls((o) => ({ ...o, [variant]: { status: "loading" } }));
-      overallDispatched.current[variant] = false;
 
       // 4a-7: persist to the `portfolios` table when the user is logged in.
       // Fire-and-forget — UI doesn't block on the network.
@@ -462,48 +412,43 @@ export function AnalysisProvider({ current, spare, userId, children }: ProviderP
     ],
   );
 
-  // Portfolio overall — fires once per variant when every non-empty slot
-  // is ready. Empty slots are skipped per CLAUDE.md 4a-6-3 ("빈 슬롯은
-  // analyze 호출 없음"). All-empty → status="empty" with no fetch.
+  // Portfolio overall — derived client-side from the ready stocks' overalls
+  // (Step 4c-9; no GPT call). Recomputes whenever the stock set changes, so
+  // cron/Realtime stock updates flow into the overall for free. Empty slots
+  // are skipped; all-empty → status="empty".
   useEffect(() => {
-    const aborter = new AbortController();
     (["current", "spare"] as const).forEach((variant) => {
-      if (overallDispatched.current[variant]) return;
       const names = variant === "current" ? currentNames : spareNames;
       const filled = names.filter((n) => n !== "");
 
       if (filled.length === 0) {
-        overallDispatched.current[variant] = true;
-        setOveralls((s) => ({ ...s, [variant]: { status: "empty" } }));
+        setOveralls((s) =>
+          s[variant].status === "empty" ? s : { ...s, [variant]: { status: "empty" } },
+        );
         return;
       }
 
       const ready: Stock[] = [];
       for (const n of filled) {
-        const s = stocks[n];
-        if (!s || s.status !== "ready") return;
-        ready.push(s.stock);
+        const st = stocks[n];
+        if (!st || st.status !== "ready") return; // wait until every slot is ready
+        ready.push(st.stock);
       }
 
-      if (USE_FIXTURE) {
-        overallDispatched.current[variant] = true;
-        const o = ANALYSIS_FIXTURE?.overalls[variant];
-        setOveralls((s) => ({
-          ...s,
-          [variant]: o
-            ? { status: "ready", overall: o, source: "fixture" }
-            : {
-                status: "ready",
-                overall: { signal: "neutral", intensity: "mid" },
-                source: "mock",
-              },
-        }));
-        return;
-      }
-      runOverallReal(variant, ready, aborter.signal);
+      const overall = aggregateOverall(ready);
+      setOveralls((s) => {
+        const cur = s[variant];
+        if (
+          cur.status === "ready" &&
+          cur.overall.signal === overall.signal &&
+          cur.overall.intensity === overall.intensity
+        ) {
+          return s; // unchanged — avoid a needless re-render
+        }
+        return { ...s, [variant]: { status: "ready", overall, source: "computed" } };
+      });
     });
-    return () => aborter.abort();
-  }, [stocks, currentNames, spareNames, runOverallReal]);
+  }, [stocks, currentNames, spareNames]);
 
   // Fixture-capture (real mode only) — unchanged from prior behavior.
   useEffect(() => {

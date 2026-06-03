@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { CACHE_MAX_ISSUES, computeStock } from "@/lib/analyze";
-import { analyzePortfolioOverall } from "@/lib/openai";
 import { readCachedAnalysis, writeCachedAnalysis } from "@/lib/supabase/analysis-cache";
-import type { Stock } from "@/types";
 
 // Forced dynamic so Next never tries to cache or statically render this route.
 export const dynamic = "force-dynamic";
@@ -36,13 +34,9 @@ interface StockRequest {
   maxIssues?: number;
 }
 
-interface PortfolioRequest {
-  type: "portfolio-overall";
-  label: string;
-  stocks: Stock[];
-}
-
-type AnalyzeRequest = StockRequest | PortfolioRequest;
+// Portfolio overall is derived client-side from the per-stock overalls
+// (src/lib/overall.ts) — this route only computes single stocks now.
+type AnalyzeRequest = StockRequest;
 
 export async function POST(req: Request) {
   let body: AnalyzeRequest;
@@ -63,17 +57,6 @@ export async function POST(req: Request) {
           : 20;
       const result = await analyzeOneStock(body.stockName, maxIssues);
       return NextResponse.json(result);
-    }
-
-    if (body.type === "portfolio-overall") {
-      if (typeof body.label !== "string" || !Array.isArray(body.stocks)) {
-        return NextResponse.json(
-          { error: "label and stocks[] required" },
-          { status: 400 },
-        );
-      }
-      const overall = await analyzePortfolioOverall(body.label, body.stocks);
-      return NextResponse.json({ overall });
     }
 
     return NextResponse.json({ error: "unknown type" }, { status: 400 });
