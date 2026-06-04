@@ -63,10 +63,21 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* No custom page scrollbar — rely on the browser's native overlay scrollbar so
-   it only appears while scrolling and floats over the gradient with no track
-   background. (Any ::-webkit-scrollbar styling would force an always-visible
-   classic scrollbar that reserves a gutter, which is the opposite of this.) */
+/* Page scrollbar — OverlayScrollbars theme (see PageScrollbar.tsx). Overlay,
+   visible only while scrolling, transparent track, #31343F handle. The overlay
+   floats over content so the gradient stays continuous (no reserved gutter). */
+.os-theme-signal {
+  --os-size: 12px;
+  --os-padding-perpendicular: 2px;
+  --os-padding-axis: 2px;
+  --os-track-bg: transparent;
+  --os-track-bg-hover: transparent;
+  --os-track-bg-active: transparent;
+  --os-handle-border-radius: 6px;
+  --os-handle-bg: #31343f;
+  --os-handle-bg-hover: #31343f;
+  --os-handle-bg-active: #31343f;
+}
 
 button {
   font-family: inherit;

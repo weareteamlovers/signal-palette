@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Roboto, Noto_Sans_KR } from "next/font/google";
+import "overlayscrollbars/overlayscrollbars.css";
 import "./globals.css";
+import { PageScrollbar } from "@/components/PageScrollbar";
 
 const roboto = Roboto({
   subsets: ["latin"],
@@ -31,7 +33,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <PageScrollbar />
+        {children}
+      </body>
     </html>
   );
 }
