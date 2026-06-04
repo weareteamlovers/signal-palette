@@ -55,15 +55,15 @@ function StockLogo({ ticker }: { ticker?: string }) {
     return <span className={styles.rowLogo} aria-hidden="true" />;
   }
   return (
-    <img
-      className={styles.rowLogo}
-      style={{ objectFit: "contain" }}
-      src={`https://img.logo.dev/ticker/${encodeURIComponent(ticker)}?token=${token}&size=48&format=png`}
-      alt=""
-      aria-hidden="true"
-      loading="lazy"
-      onError={() => setFailed(true)}
-    />
+    <span className={styles.rowLogo} aria-hidden="true">
+      <img
+        className={styles.rowLogoImg}
+        src={`https://img.logo.dev/ticker/${encodeURIComponent(ticker)}?token=${token}&size=64&format=png`}
+        alt=""
+        loading="lazy"
+        onError={() => setFailed(true)}
+      />
+    </span>
   );
 }
 
