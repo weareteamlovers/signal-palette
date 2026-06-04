@@ -2,8 +2,8 @@
 // no CORS). Persists results to stock_meta so the news router can route any
 // added stock. Falls back to the static catalog when Naver fails/empty.
 
-import { NextResponse } from "next/server";
-import { STOCK_CATALOG, type StockMeta } from "@/data/stock-catalog";
+import { after, NextResponse } from "next/server";
+import { metaByTicker, STOCK_CATALOG, type StockMeta } from "@/data/stock-catalog";
 import { searchStocks } from "@/lib/stock-search";
 import { writeStockMeta } from "@/lib/supabase/analysis-cache";
 
@@ -25,9 +25,16 @@ export async function GET(req: Request) {
     );
   }
 
-  // Grow the catalog: remember what we found so news routing knows the
-  // market/ticker once the stock is added. Awaited so it lands on serverless.
-  await writeStockMeta(results);
+  // #4: prefer our curated Korean name when the ticker is in the catalog
+  // (e.g. PWR → "콴타 서비시스" instead of Naver's "콴타 서비스").
+  results = results.map((r) => {
+    const cat = r.ticker ? metaByTicker(r.ticker) : undefined;
+    return cat ? { ...r, name: cat.name } : r;
+  });
+
+  // #1: don't block the response on the cache write — run it after responding
+  // (still within the function lifetime via after()).
+  after(() => writeStockMeta(results));
 
   return NextResponse.json({ results });
 }

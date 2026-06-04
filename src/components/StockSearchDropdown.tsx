@@ -86,7 +86,11 @@ export function StockSearchDropdown({
 
   const candidates = useMemo(() => {
     const used = new Set(excludeNames);
-    const base = query.trim() === "" ? STOCK_MASTER : apiResults;
+    const q = query.trim().toLowerCase();
+    // Empty → browse the full catalog. Typing → show local catalog matches
+    // INSTANTLY (no debounce/network wait) then merge in the live API results.
+    const local = q === "" ? STOCK_MASTER : STOCK_MASTER.filter((n) => n.toLowerCase().includes(q));
+    const base = q === "" ? STOCK_MASTER : [...local, ...apiResults];
     const seen = new Set<string>();
     return base.filter((name) => {
       if (used.has(name) || seen.has(name)) return false;
