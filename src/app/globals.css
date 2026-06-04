@@ -63,6 +63,44 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Page (window) scrollbar — same treatment as the stock-search dropdown.
+   Track #161921, thumb + arrows #282B32. */
+html {
+  /* Firefox + spec (thumb track). */
+  scrollbar-color: #282b32 #161921;
+  scrollbar-width: thin;
+}
+html::-webkit-scrollbar {
+  width: 12px;
+}
+html::-webkit-scrollbar-track {
+  background: #161921;
+}
+html::-webkit-scrollbar-thumb {
+  background: #282b32;
+  border-radius: 6px;
+}
+/* Up/down arrow buttons — hide the OS arrow, draw an SVG triangle in #282B32. */
+html::-webkit-scrollbar-button {
+  background: #161921;
+  height: 12px;
+  width: 12px;
+  display: block;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+html::-webkit-scrollbar-button:vertical:start {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><polygon points='5,3 8,7 2,7' fill='%23282b32'/></svg>");
+}
+html::-webkit-scrollbar-button:vertical:end {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><polygon points='5,7 8,3 2,3' fill='%23282b32'/></svg>");
+}
+/* Suppress the doubled buttons Webkit shows by default. */
+html::-webkit-scrollbar-button:vertical:start:increment,
+html::-webkit-scrollbar-button:vertical:end:decrement {
+  display: none;
+}
+
 button {
   font-family: inherit;
 }
