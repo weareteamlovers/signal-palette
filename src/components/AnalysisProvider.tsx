@@ -80,7 +80,7 @@ interface ProviderProps {
 const MOBILE_MQ = "(max-width: 767px)";
 const TABLET_MQ = "(min-width: 768px) and (max-width: 1279px)";
 // Always fetch the full set (once). Mobile trims to the top-N by importance at
-// render time (topByImportance) rather than re-analyzing on a viewport resize.
+// render time (topByPop) rather than re-analyzing on a viewport resize.
 const FETCH_MAX_ISSUES = 20;
 
 function makeLoading(names: readonly string[]): Record<string, StockState> {
@@ -271,7 +271,7 @@ export function AnalysisProvider({ current, spare, userId, children }: ProviderP
   );
 
   // Initial load — runs once on mount. NOT re-run when the viewport flips
-  // (mobile trims at render via topByImportance) nor when names change (those
+  // (mobile trims at render via topByPop) nor when names change (those
   // are handled incrementally by `updatePortfolio`).
   useEffect(() => {
     const aborter = new AbortController();

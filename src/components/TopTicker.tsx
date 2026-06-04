@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { CURRENT_STOCK_NAMES, SPARE_STOCK_NAMES } from "@/data/default-portfolio";
-import { MOBILE_MAX_ISSUES, topByImportance } from "@/lib/issues";
+import { MOBILE_MAX_ISSUES, topByPop } from "@/lib/issues";
 import type { Issue } from "@/types";
 import { AnalyzingText } from "./AnalyzingText";
 import { useActiveIssue } from "./ActiveIssueContext";
@@ -37,7 +37,7 @@ export function TopTicker() {
       for (const name of names) {
         const s = stocks[name];
         if (!s || s.status !== "ready") continue;
-        for (const issue of topByImportance(s.stock.issues, limit)) {
+        for (const issue of topByPop(s.stock.issues, limit)) {
           out.push({ stockName: name, issue });
         }
       }

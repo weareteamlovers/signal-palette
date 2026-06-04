@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { STOCK_COMP_BOX } from "@/lib/design-tokens";
-import { MOBILE_MAX_ISSUES, topByImportance } from "@/lib/issues";
+import { MOBILE_MAX_ISSUES, topByPop } from "@/lib/issues";
 import { useActiveEdit } from "./ActiveEditContext";
 import { useActiveStock } from "./ActiveStockContext";
 import { useAnalysis, type ViewportMode } from "./AnalysisProvider";
@@ -62,10 +62,11 @@ export function StockCard({ name, variant, slotIndex }: Props) {
     document.fonts?.ready?.then(measure).catch(() => {});
   }, [name, isMobile]);
 
-  // Mobile shows only the top-10 issues by importance (the card always holds
-  // the full fetched set; we trim at render rather than re-analyzing on resize).
+  // Mobile shows only the top-10 issues by pop score (recency-weighted
+  // importance — Step 4d); the card always holds the full fetched set and we
+  // trim at render rather than re-analyzing on resize.
   const displayIssues =
-    issues && isMobile ? topByImportance(issues, MOBILE_MAX_ISSUES) : issues;
+    issues && isMobile ? topByPop(issues, MOBILE_MAX_ISSUES) : issues;
 
   const handleClick = () => {
     if (isEmpty) openEdit(variant, slotIndex);
