@@ -5,6 +5,7 @@ import { CENTRAL } from "@/lib/design-tokens";
 import { CURRENT_STOCK_NAMES, SPARE_STOCK_NAMES } from "@/data/default-portfolio";
 import type { Issue } from "@/types";
 import { AnalyzingText } from "./AnalyzingText";
+import { ArticleLink } from "./ArticleLink";
 import { ColorBox } from "./ColorBox";
 import { useActiveIssue } from "./ActiveIssueContext";
 import { useAnalysis } from "./AnalysisProvider";
@@ -102,7 +103,9 @@ export function CentralIssue() {
         <span className={styles.boxSlot}>
           <ColorBox signal={issue.signal} intensity={issue.intensity} size={CENTRAL.signalBoxSize} />
         </span>
-        <span className={styles.text}>&ldquo;{issue.text}&rdquo;</span>
+        <ArticleLink url={issue.source?.url} className={styles.text}>
+          &ldquo;{issue.text}&rdquo;
+        </ArticleLink>
       </div>
     </div>
   );

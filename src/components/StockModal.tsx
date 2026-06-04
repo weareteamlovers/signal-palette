@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Issue } from "@/types";
 import { useActiveStock } from "./ActiveStockContext";
 import { useAnalysis } from "./AnalysisProvider";
+import { ArticleLink } from "./ArticleLink";
 import { ColorBox } from "./ColorBox";
 import styles from "./StockModal.module.css";
 
@@ -153,7 +154,9 @@ export function StockModal() {
                 />
               </span>
               <span className={styles.rowContent}>
-                <span className={styles.rowText}>{issue.text}</span>
+                <ArticleLink url={issue.source?.url} className={styles.rowText}>
+                  {issue.text}
+                </ArticleLink>
                 <span className={styles.rowTime}>
                   {mounted && issue.createdAt ? formatKst(issue.createdAt) : "-"}
                 </span>

@@ -5,6 +5,7 @@ import { CURRENT_STOCK_NAMES, SPARE_STOCK_NAMES } from "@/data/default-portfolio
 import { MOBILE_MAX_ISSUES, topByPop } from "@/lib/issues";
 import type { Issue } from "@/types";
 import { AnalyzingText } from "./AnalyzingText";
+import { ArticleLink } from "./ArticleLink";
 import { useActiveIssue } from "./ActiveIssueContext";
 import { useAnalysis } from "./AnalysisProvider";
 import { ColorBox } from "./ColorBox";
@@ -104,7 +105,9 @@ export function TopTicker() {
             size={SIGNAL_BOX_SIZE}
           />
         </span>
-        <span className={styles.text}>&ldquo;{issue.text}&rdquo;</span>
+        <ArticleLink url={issue.source?.url} className={styles.text}>
+          &ldquo;{issue.text}&rdquo;
+        </ArticleLink>
       </div>
     </div>
   );
