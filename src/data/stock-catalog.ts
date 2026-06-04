@@ -77,7 +77,7 @@ export const STOCK_CATALOG: readonly StockMeta[] = [
   { name: "아마존", market: "US", ticker: "AMZN" },
   { name: "팔란티어", market: "US", ticker: "PLTR" },
   { name: "일라이 릴리", market: "US", ticker: "LLY" },
-  { name: "아스트라 랩스", market: "US", ticker: "ALAB" },
+  { name: "아스테라 랩스", market: "US", ticker: "ALAB" },
   { name: "콴타 서비시스", market: "US", ticker: "PWR" },
   { name: "크라우드스트라이크 홀딩스", market: "US", ticker: "CRWD" },
 

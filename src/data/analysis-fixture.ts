@@ -532,7 +532,7 @@ export const ANALYSIS_FIXTURE: AnalysisFixture | null = {
         "intensity": "strong"
       }
     },
-    "아스트라 랩스": {
+    "아스테라 랩스": {
       "issues": [
         {
           "text": "분기 매출 14% QoQ·93% YoY 기록",
