@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { STOCK_MASTER } from "@/data/stock-master";
+import { STOCK_CATALOG } from "@/data/stock-catalog";
 import styles from "./StockSearchDropdown.module.css";
+
+/** A search candidate: Korean name + (US) ticker for the logo. */
+type SearchItem = { name: string; ticker?: string };
 
 interface Props {
   /** Names already used in the same portfolio — hidden from candidates per
@@ -43,6 +46,27 @@ function SearchIcon() {
   );
 }
 
+/** #3: company logo by ticker via logo.dev (US). Falls back to the white-circle
+ *  placeholder for KR (no ticker), a missing token, or a load error. */
+function StockLogo({ ticker }: { ticker?: string }) {
+  const [failed, setFailed] = useState(false);
+  const token = process.env.NEXT_PUBLIC_LOGODEV_TOKEN;
+  if (!ticker || !token || failed) {
+    return <span className={styles.rowLogo} aria-hidden="true" />;
+  }
+  return (
+    <img
+      className={styles.rowLogo}
+      style={{ objectFit: "contain" }}
+      src={`https://img.logo.dev/ticker/${encodeURIComponent(ticker)}?token=${token}&size=48&format=png`}
+      alt=""
+      aria-hidden="true"
+      loading="lazy"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 export function StockSearchDropdown({
   excludeNames,
   rowIndex,
@@ -51,7 +75,7 @@ export function StockSearchDropdown({
   onClose,
 }: Props) {
   const [query, setQuery] = useState("");
-  const [apiResults, setApiResults] = useState<string[]>([]);
+  const [apiResults, setApiResults] = useState<SearchItem[]>([]);
   const [loading, setLoading] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
 
@@ -70,8 +94,8 @@ export function StockSearchDropdown({
     const t = setTimeout(async () => {
       try {
         const res = await fetch(`/api/stock-search?q=${encodeURIComponent(q)}`);
-        const data = (await res.json()) as { results?: Array<{ name: string }> };
-        if (!cancelled) setApiResults((data.results ?? []).map((r) => r.name));
+        const data = (await res.json()) as { results?: SearchItem[] };
+        if (!cancelled) setApiResults(data.results ?? []);
       } catch {
         if (!cancelled) setApiResults([]);
       } finally {
@@ -84,17 +108,19 @@ export function StockSearchDropdown({
     };
   }, [query]);
 
-  const candidates = useMemo(() => {
+  const candidates = useMemo<SearchItem[]>(() => {
     const used = new Set(excludeNames);
     const q = query.trim().toLowerCase();
     // Empty → browse the full catalog. Typing → show local catalog matches
     // INSTANTLY (no debounce/network wait) then merge in the live API results.
-    const local = q === "" ? STOCK_MASTER : STOCK_MASTER.filter((n) => n.toLowerCase().includes(q));
-    const base = q === "" ? STOCK_MASTER : [...local, ...apiResults];
+    const local: SearchItem[] = (
+      q === "" ? STOCK_CATALOG : STOCK_CATALOG.filter((s) => s.name.toLowerCase().includes(q))
+    ).map((s) => ({ name: s.name, ticker: s.ticker }));
+    const base = q === "" ? local : [...local, ...apiResults];
     const seen = new Set<string>();
-    return base.filter((name) => {
-      if (used.has(name) || seen.has(name)) return false;
-      seen.add(name);
+    return base.filter((item) => {
+      if (used.has(item.name) || seen.has(item.name)) return false;
+      seen.add(item.name);
       return true;
     });
   }, [query, apiResults, excludeNames]);
@@ -175,20 +201,20 @@ export function StockSearchDropdown({
             </p>
           </li>
         ) : (
-          candidates.map((name) => (
+          candidates.map((item) => (
             <li
-              key={name}
+              key={item.name}
               className={styles.row}
-              onClick={() => onSelect(name)}
+              onClick={() => onSelect(item.name)}
               role="option"
               aria-selected="false"
             >
-              <span className={styles.rowLogo} aria-hidden="true" />
-              <p className={styles.rowName}>{name}</p>
+              <StockLogo ticker={item.ticker} />
+              <p className={styles.rowName}>{item.name}</p>
               <button
                 type="button"
                 className={styles.selectBtn}
-                onClick={() => onSelect(name)}
+                onClick={() => onSelect(item.name)}
               >
                 선택
               </button>
