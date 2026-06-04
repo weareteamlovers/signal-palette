@@ -35,5 +35,26 @@ export function PageScrollbar() {
     });
   }, [initialize]);
 
+  // Reveal the overlay scrollbar while the mouse sits over its region (the
+  // right edge), in addition to the autoHide: "scroll" trigger. Toggles the
+  // `os-peek` class on <html>; the CSS override (globals.css) forces the
+  // vertical scrollbar visible. Mouse-only — touch reveals via scrolling.
+  useEffect(() => {
+    const REVEAL_PX = 24;
+    const root = document.documentElement;
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse") return;
+      root.classList.toggle(
+        "os-peek",
+        e.clientX >= window.innerWidth - REVEAL_PX,
+      );
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      root.classList.remove("os-peek");
+    };
+  }, []);
+
   return null;
 }

@@ -79,6 +79,14 @@ body {
   --os-handle-bg-active: #31343f;
 }
 
+/* Reveal the overlay scrollbar while the mouse is over its region (PageScrollbar
+   toggles `os-peek` near the right edge). Higher specificity than the autoHide
+   hidden rule, so it forces the vertical scrollbar visible without !important. */
+html.os-peek body > .os-scrollbar-vertical {
+  opacity: 1;
+  visibility: visible;
+}
+
 button {
   font-family: inherit;
 }
