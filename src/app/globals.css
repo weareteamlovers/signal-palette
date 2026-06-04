@@ -63,18 +63,18 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Page (window) scrollbar — same treatment as the stock-search dropdown.
-   Track #161921, thumb + arrows #282B32. */
+/* Page (window) scrollbar — always visible, transparent track.
+   Thumb + arrows #282B32, no track background. */
 html {
   /* Firefox + spec (thumb track). */
-  scrollbar-color: #282b32 #161921;
+  scrollbar-color: #282b32 transparent;
   scrollbar-width: thin;
 }
 html::-webkit-scrollbar {
   width: 12px;
 }
 html::-webkit-scrollbar-track {
-  background: #161921;
+  background: transparent;
 }
 html::-webkit-scrollbar-thumb {
   background: #282b32;
@@ -82,7 +82,7 @@ html::-webkit-scrollbar-thumb {
 }
 /* Up/down arrow buttons — hide the OS arrow, draw an SVG triangle in #282B32. */
 html::-webkit-scrollbar-button {
-  background: #161921;
+  background: transparent;
   height: 12px;
   width: 12px;
   display: block;
