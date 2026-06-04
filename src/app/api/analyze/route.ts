@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { CACHE_MAX_ISSUES, computeStock } from "@/lib/analyze";
+import { captureIssues } from "@/lib/events/capture";
 import { readCachedAnalysis, writeCachedAnalysis } from "@/lib/supabase/analysis-cache";
 
 // Forced dynamic so Next never tries to cache or statically render this route.
@@ -23,6 +24,9 @@ async function analyzeOneStock(stockName: string, maxIssues: number) {
   }
   const result = await computeStock(stockName, CACHE_MAX_ISSUES);
   await writeCachedAnalysis(stockName, result.issues, result.overall);
+  // Step 5: log new issues to the event store after responding (no added
+  // latency). Idempotent + best-effort.
+  after(() => captureIssues(stockName, result.issues));
   return { issues: result.issues.slice(0, maxIssues), overall: result.overall };
 }
 

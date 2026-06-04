@@ -481,3 +481,14 @@ ${articleList}
 
 // Portfolio overall is no longer derived by GPT — it's computed client-side
 // from the per-stock overalls (src/lib/overall.ts, Step 4c-9).
+
+/** Step 5: embed issue texts for the event store (Phase 1) and similarity
+ *  retrieval (Phase 2). text-embedding-3-small (1536-dim, matches the
+ *  event_log vector column) — cheap and multilingual (handles Korean). */
+const EMBED_MODEL = "text-embedding-3-small";
+
+export async function embedTexts(texts: string[]): Promise<number[][]> {
+  if (texts.length === 0) return [];
+  const res = await client.embeddings.create({ model: EMBED_MODEL, input: texts });
+  return res.data.map((d) => d.embedding as number[]);
+}

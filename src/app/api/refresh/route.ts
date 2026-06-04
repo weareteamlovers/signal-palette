@@ -7,6 +7,8 @@
 import { NextResponse } from "next/server";
 import { metaOf, type Market } from "@/data/stock-catalog";
 import { CACHE_MAX_ISSUES, refreshStock } from "@/lib/analyze";
+import { captureIssues } from "@/lib/events/capture";
+import { labelDueEvents } from "@/lib/events/label";
 import {
   REFRESH_MODE,
   SCHEDULE,
@@ -19,6 +21,10 @@ import {
   selectStaleStockNames,
   writeCachedAnalysis,
 } from "@/lib/supabase/analysis-cache";
+
+// Step 5 / Phase 1: events to attempt labeling per tick (Yahoo fetches + math,
+// no GPT — cheap relative to the refresh batch).
+const LABEL_BATCH = 30;
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -49,11 +55,16 @@ export async function GET(req: Request) {
     stale.map(async (name) => {
       const result = await refreshStock(name, CACHE_MAX_ISSUES);
       await writeCachedAnalysis(name, result.issues, result.overall);
+      // Step 5: log any new issues to the event store (idempotent, best-effort).
+      await captureIssues(name, result.issues);
     }),
   );
   const refreshed = stale.filter((_, i) => settled[i].status === "fulfilled");
   const failed = stale.filter((_, i) => settled[i].status === "rejected");
   if (failed.length) console.warn("[refresh] failed:", failed.join(", "));
+
+  // Step 5: label events that have now aged enough for a forward-return window.
+  const labeling = await labelDueEvents(LABEL_BATCH);
 
   return NextResponse.json({
     mode: REFRESH_MODE,
@@ -61,5 +72,6 @@ export async function GET(req: Request) {
     candidates: names.length,
     refreshed,
     failed,
+    labeling,
   });
 }
