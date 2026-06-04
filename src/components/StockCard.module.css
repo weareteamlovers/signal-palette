@@ -35,12 +35,18 @@
   line-height: 19px; /* Figma reports text height 19 for 16px font */
   color: var(--text-primary);
   white-space: nowrap;
-  /* #6: long names (e.g. searched "써모 피셔 사이언티픽") shouldn't overflow the
-     card past the comp box. Cap width and fade the right edge to transparent —
-     same gradient treatment as the search dropdown rows. (Flex item, so
-     max-width/overflow apply.) Card 290 − box 30 − gap 3 leaves room. */
+  /* #6: cap width so long names (e.g. searched "써모 피셔 사이언티픽") don't push
+     past the comp box / card edge. (Flex item, so max-width/overflow apply.)
+     Card 290 − box 30 − gap 3 leaves room. The right-edge fade is applied via
+     .nameFade ONLY when the name actually overflows (StockCard measures it),
+     so short names are not faded. */
   max-width: 240px;
   overflow: hidden;
+}
+
+/* Right-edge gradient fade — added only when the name overflows its 240px cap
+   (same treatment as the search dropdown rows). */
+.nameFade {
   -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent);
   mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent);
 }

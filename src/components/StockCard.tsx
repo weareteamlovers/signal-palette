@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { STOCK_COMP_BOX } from "@/lib/design-tokens";
 import { MOBILE_MAX_ISSUES, topByImportance } from "@/lib/issues";
 import { useActiveEdit } from "./ActiveEditContext";
@@ -48,6 +49,19 @@ export function StockCard({ name, variant, slotIndex }: Props) {
   // Desktop/tablet cards are 290px and fit the existing names statically.
   const isMobile = viewport === "mobile";
 
+  // #6: fade the name's right edge ONLY when it actually overflows (long
+  // searched names) — short names must not be faded. Desktop/tablet only.
+  const nameRef = useRef<HTMLSpanElement>(null);
+  const [nameFade, setNameFade] = useState(false);
+  useEffect(() => {
+    const el = nameRef.current;
+    if (!el) return;
+    const measure = () => setNameFade(el.scrollWidth > el.clientWidth + 1);
+    measure();
+    // Re-measure once webfonts load — text width can change.
+    document.fonts?.ready?.then(measure).catch(() => {});
+  }, [name, isMobile]);
+
   // Mobile shows only the top-10 issues by importance (the card always holds
   // the full fetched set; we trim at render rather than re-analyzing on resize).
   const displayIssues =
@@ -82,7 +96,12 @@ export function StockCard({ name, variant, slotIndex }: Props) {
             <StockNameMarquee text={name} />
           </span>
         ) : (
-          <span className={styles.name}>{name}</span>
+          <span
+            ref={nameRef}
+            className={nameFade ? `${styles.name} ${styles.nameFade}` : styles.name}
+          >
+            {name}
+          </span>
         )}
         <div style={{ width: STOCK_COMP_BOX.gap }} aria-hidden />
         {isEmpty ? (
