@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { KR_LOGO_DOMAINS } from "@/data/kr-logo-domains";
 import { STOCK_CATALOG } from "@/data/stock-catalog";
 import styles from "./StockSearchDropdown.module.css";
 
@@ -46,19 +47,23 @@ function SearchIcon() {
   );
 }
 
-/** #3: company logo by ticker via logo.dev (US). Falls back to the white-circle
- *  placeholder for KR (no ticker), a missing token, or a load error. */
-function StockLogo({ ticker }: { ticker?: string }) {
+/** #3: company logo via logo.dev — US by ticker (`/ticker/<T>`), KR by company
+ *  domain (`/<domain>`, from KR_LOGO_DOMAINS). Falls back to the white-circle
+ *  placeholder for unmapped names, a missing token, or a load error. */
+function StockLogo({ name, ticker }: { name: string; ticker?: string }) {
   const [failed, setFailed] = useState(false);
   const token = process.env.NEXT_PUBLIC_LOGODEV_TOKEN;
-  if (!ticker || !token || failed) {
+  const path = ticker
+    ? `ticker/${encodeURIComponent(ticker)}`
+    : KR_LOGO_DOMAINS[name];
+  if (!path || !token || failed) {
     return <span className={styles.rowLogo} aria-hidden="true" />;
   }
   return (
     <span className={styles.rowLogo} aria-hidden="true">
       <img
         className={styles.rowLogoImg}
-        src={`https://img.logo.dev/ticker/${encodeURIComponent(ticker)}?token=${token}&size=64&format=png`}
+        src={`https://img.logo.dev/${path}?token=${token}&size=64&format=png`}
         alt=""
         loading="lazy"
         onError={() => setFailed(true)}
@@ -209,7 +214,7 @@ export function StockSearchDropdown({
               role="option"
               aria-selected="false"
             >
-              <StockLogo ticker={item.ticker} />
+              <StockLogo name={item.name} ticker={item.ticker} />
               <p className={styles.rowName}>{item.name}</p>
               <button
                 type="button"
