@@ -1,12 +1,22 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { USE_FIXTURE } from "@/lib/feature-flags";
+import { mockStockPrediction } from "@/lib/predict/fixture";
+import { formatBandPct, formatImpactPeriod } from "@/lib/predict/format";
+import type { StockPrediction } from "@/lib/predict/types";
 import type { Issue } from "@/types";
 import { useActiveStock } from "./ActiveStockContext";
+import { AnalyzingText } from "./AnalyzingText";
 import { useAnalysis } from "./AnalysisProvider";
 import { ArticleLink } from "./ArticleLink";
 import { ColorBox } from "./ColorBox";
 import styles from "./StockModal.module.css";
+
+// Step 5 / Phase 4: shown in the prediction block while the event store has too
+// few similar labeled cases to predict (current cold-start reality).
+const PREDICTION_COLD_MESSAGE =
+  "지금은 예측 데이터를 축적중인 시기예요. 데이터가 충분히 쌓이면 예측 결과를 볼 수 있어요. 며칠만 더 기다려주세요.";
 
 // Timeline-relative geometry per Figma §14-6:
 //   first connector line top = 0 (frame y=179 - modal y=114 - header 65)
@@ -78,7 +88,65 @@ export function StockModal() {
     );
   }, [ready]);
 
+  // Step 5 / Phase 4: reaction prediction for the open stock. Fixture mode
+  // serves a deterministic mock (so the design renders fully offline); live
+  // mode calls /api/predict-stock with the stock's own issues. Recomputed when
+  // the active stock (or its loaded issues) changes.
+  const [prediction, setPrediction] = useState<StockPrediction | null>(null);
+  const [predLoading, setPredLoading] = useState(false);
+  useEffect(() => {
+    if (!activeStockName || !ready) {
+      setPrediction(null);
+      setPredLoading(false);
+      return;
+    }
+    if (USE_FIXTURE) {
+      setPrediction(mockStockPrediction(activeStockName, ready.issues));
+      setPredLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setPrediction(null);
+    setPredLoading(true);
+    fetch("/api/predict-stock", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stockName: activeStockName, issues: ready.issues }),
+    })
+      .then((r) => (r.ok ? (r.json() as Promise<StockPrediction>) : null))
+      .then((data) => {
+        if (cancelled) return;
+        setPrediction(data);
+        setPredLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPrediction(null);
+        setPredLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeStockName, ready]);
+
   if (!activeStockName || !activeVariant) return null;
+
+  // Cold start (no usable similar cases) → chips show "데이터 부족" + the
+  // accumulation message; otherwise the chips/narrative are populated.
+  const predBusy = predLoading || !ready;
+  const predCold =
+    !prediction ||
+    prediction.contributingIssues === 0 ||
+    !prediction.band ||
+    !prediction.impactPeriod;
+  const periodText =
+    !predCold && prediction?.impactPeriod
+      ? formatImpactPeriod(prediction.impactPeriod)
+      : "데이터 부족";
+  const bandText =
+    !predCold && prediction?.band ? formatBandPct(prediction.band) : "데이터 부족";
+  const narrativeText =
+    !predCold && prediction ? prediction.rationale : PREDICTION_COLD_MESSAGE;
 
   const n = visible.length;
   const innerHeight =
@@ -123,6 +191,33 @@ export function StockModal() {
         >
           닫기
         </button>
+      </div>
+
+      {/* Step 5 / Phase 4: reaction prediction summary (영향 기간 · 예상 변동폭
+          chips + narrative). Fixed between the sticky header and the timeline.
+          The connector line continues the pipeline spine from here (Figma
+          node 84:987) down into the timeline's leading line. */}
+      <div className={styles.prediction}>
+        <span className={styles.predLine} aria-hidden />
+        {predBusy ? (
+          <div className={styles.predLoading}>
+            <AnalyzingText />
+          </div>
+        ) : (
+          <>
+            <div className={styles.predChips}>
+              <span className={styles.predChip}>
+                <span className={styles.predChipLabel}>영향 기간</span>
+                <span className={styles.predChipValue}>{periodText}</span>
+              </span>
+              <span className={styles.predChip}>
+                <span className={styles.predChipLabel}>예상 변동폭</span>
+                <span className={styles.predChipValue}>{bandText}</span>
+              </span>
+            </div>
+            <p className={styles.predNarrative}>{narrativeText}</p>
+          </>
+        )}
       </div>
 
       <div className={styles.timeline}>

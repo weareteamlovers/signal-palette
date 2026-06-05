@@ -113,3 +113,39 @@ export async function insertOutcomes(rows: OutcomeRow[]): Promise<void> {
     console.warn("[events] outcome insert threw", e);
   }
 }
+
+/** A labeled neighbor returned by the match_events RPC (Phase 2 retrieval):
+ *  a past event similar to the query, with its realized excess returns. */
+export interface NeighborEvent {
+  id: string;
+  stock_name: string;
+  sector: string | null;
+  issue_text: string;
+  t0: string;
+  similarity: number; // cosine, 1 = identical
+  abret_1d: number | null;
+  abret_3d: number | null;
+  abret_5d: number | null;
+}
+
+/** k nearest labeled events to `embedding`, optionally scoped to one stock or
+ *  sector. Empty (graceful) without env or before the migration. */
+export async function matchEvents(
+  embedding: number[],
+  opts: { stock?: string; sector?: string; limit: number },
+): Promise<NeighborEvent[]> {
+  const supabase = serviceClient();
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase.rpc("match_events", {
+      query_embedding: JSON.stringify(embedding),
+      filter_stock: opts.stock ?? null,
+      filter_sector: opts.sector ?? null,
+      match_count: opts.limit,
+    });
+    if (error || !data) return [];
+    return data as NeighborEvent[];
+  } catch {
+    return [];
+  }
+}

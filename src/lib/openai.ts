@@ -492,3 +492,89 @@ export async function embedTexts(texts: string[]): Promise<number[][]> {
   const res = await client.embeddings.create({ model: EMBED_MODEL, input: texts });
   return res.data.map((d) => d.embedding as number[]);
 }
+
+/** Step 5 / Phase 2: facts a prediction rationale may use. All numbers are
+ *  pre-computed by the deterministic aggregation — the model must NOT invent
+ *  any others. */
+export interface NarrateInput {
+  stockName: string;
+  issueText: string;
+  sector?: string;
+  scope: "stock" | "sector";
+  directionKo: string; // "상승" | "하락" | "중립"
+  bandPct?: { low: string; high: string }; // already %-formatted, e.g. "-3.8%"
+  impactPeriod?: { from: number; to: number };
+  sampleSize: number;
+  agreeCount: number; // neighbors agreeing with the direction
+  examples: string[]; // a few similar past issue texts
+}
+
+/** Write a one~two sentence Korean rationale grounded ONLY in the supplied
+ *  facts. Throws on OpenAI error — caller falls back to a template. */
+export async function narratePrediction(input: NarrateInput): Promise<string> {
+  const scopeKo = input.scope === "stock" ? "이 종목" : "동일 섹터";
+  const facts = [
+    `종목: ${input.stockName}`,
+    `이슈: ${input.issueText}`,
+    input.sector ? `섹터: ${input.sector}` : "",
+    `예측 방향: ${input.directionKo}`,
+    input.bandPct ? `예상 변동폭(섹터 대비 초과수익): ${input.bandPct.low} ~ ${input.bandPct.high}` : "",
+    input.impactPeriod ? `영향 기간: ${input.impactPeriod.from}~${input.impactPeriod.to}거래일` : "",
+    `근거: 과거 ${scopeKo}의 유사 이슈 ${input.sampleSize}건 중 ${input.agreeCount}건이 같은 방향`,
+    input.examples.length ? `유사 사례 예: ${input.examples.join(" / ")}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const prompt = `당신은 주식 시장 애널리스트입니다. 아래 사실만 사용해 이 이슈가 주가에 미칠 영향에 대한 근거를 1~2문장의 자연스러운 한국어로 작성하세요. 아래에 없는 새 수치·사실을 절대 지어내지 마세요. "${input.sampleSize}건 중 ${input.agreeCount}건" 같은 표본 근거를 포함하면 좋습니다. 코드 블록 없이 문장만 출력하세요.
+
+[사실]
+${facts}`;
+
+  const response = await client.responses.create({ model: "gpt-4o-mini", input: prompt });
+  return response.output_text.trim();
+}
+
+/** Step 5 / Phase 3: facts for a stock-level (multi-issue) prediction rationale.
+ *  All numbers are pre-computed by the deterministic blend. */
+export interface NarrateStockInput {
+  stockName: string;
+  sector?: string;
+  directionKo: string; // net direction
+  bandPct?: { low: string; high: string };
+  impactPeriod?: { from: number; to: number };
+  contributingIssues: number;
+  totalIssues: number;
+  upCount: number; // contributors pushing up
+  downCount: number; // contributors pushing down
+  topIssues: { text: string; directionKo: string }[];
+}
+
+/** Narrate the blended stock-level prediction in 1~2 Korean sentences. Must use
+ *  only the supplied facts (no invented numbers); should mention the net effect
+ *  and any tug-of-war between issues. Throws on error → caller uses a template. */
+export async function narrateStockPrediction(input: NarrateStockInput): Promise<string> {
+  const top = input.topIssues
+    .map((t) => `  - (${t.directionKo}) ${t.text}`)
+    .join("\n");
+  const facts = [
+    `종목: ${input.stockName}`,
+    input.sector ? `섹터: ${input.sector}` : "",
+    `전체 이슈 ${input.totalIssues}개 중 ${input.contributingIssues}개가 예측에 기여`,
+    `상승 압력 ${input.upCount}개 / 하락 압력 ${input.downCount}개`,
+    `종합 방향: ${input.directionKo}`,
+    input.bandPct ? `예상 변동폭(섹터 대비 초과수익): ${input.bandPct.low} ~ ${input.bandPct.high}` : "",
+    input.impactPeriod ? `영향 기간: ${input.impactPeriod.from}~${input.impactPeriod.to}거래일` : "",
+    top ? `주요 이슈:\n${top}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const prompt = `당신은 주식 시장 애널리스트입니다. 한 종목의 여러 이슈를 종합한 예측 근거를 1~2문장의 자연스러운 한국어로 작성하세요. 상승/하락 압력이 섞여 있으면 그 줄다리기와 순효과를 설명하세요. 아래에 없는 새 수치·사실을 절대 지어내지 마세요. 코드 블록 없이 문장만 출력하세요.
+
+[사실]
+${facts}`;
+
+  const response = await client.responses.create({ model: "gpt-4o-mini", input: prompt });
+  return response.output_text.trim();
+}

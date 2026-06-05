@@ -716,4 +716,47 @@ OAuth 첫 로그인 시 1회성 표시. 다른 모달과 달리 **닫기 불가*
 - 종목명 자리: 아무 텍스트도 출력하지 않음 (빈 문자열).
 - 종목 헤더 컬러박스 (30×30): `--signal-empty` 색.
 - 20개 이슈 컬러박스 그리드: 모두 `--signal-empty` 색.
+
+---
+
+## 15. Step 5 / Phase 4 — 이슈 반응 예측 블록 (Figma node `83:522`)
+
+> 종목 상세 모달(StockModal, §14-6) 안에 삽입되는 예측 요약. 종목명(modal-rel y=41)
+> 아래, 이슈 타임라인(첫 이슈 modal-rel y=248) 위. 모달 좌표 기준은 frame 좌상단
+> (current 모달 top=114). 아래 값은 모두 Figma 노드 직접 검증 (155:2~155:14, 142:2).
+
+**칩 2개** (frame y=198 → modal-rel 84, height 34, radius 12):
+- `[영향 기간 | 3~5일]` — 외곽 pill x=385 (modal-rel 56) w=153, 값 박스 x=471 w=67.
+- `[예상 변동폭 | -0.4 ~ -2.6%]` — 외곽 pill x=558 (modal-rel 229) w=215, 값 박스 x=660 w=113.
+- 두 pill 간격 20px (538→558). 값 박스는 pill 우측 끝에 flush.
+- 외곽 pill bg `#858a9e` (`--btn-secondary-bg`), 값 박스 bg `#31343f` (`--btn-action-bg`).
+- 모든 칩 텍스트: Roboto SemiBold **16px**, `#e5e5e5`. 라벨 좌패딩 12 / 값 박스 앞 11px gap.
+- 값 박스/외곽 모두 radius 12. 값 박스·라벨은 내용 크기로 가변 (위 px는 디자인 샘플 폭).
+
+**예측 서술 텍스트** (frame y=249 → modal-rel 135, x=387 → modal-rel 58, w≈535):
+- Roboto SemiBold **16px**, `#ffffff`, line-height 19px (leading-normal).
+- Phase 3 `narrateStockPrediction` 출력 (live) / fixture 목 (local). 가변 줄 수.
+
+**파이프라인 연결선** — 전체 **3px 통일** `#ffffff`, left 35 (3px가 dot 열 중심 36.5
+정렬). `.predLine`(예측 블록) + 타임라인 `.line`(모든 줄) 모두 3px.
+- Figma leading 선(84:987)은 3px(사용자 지적 2026-06-05). 처음엔 leading 3 / connector 1px
+  로 했으나, 예측 블록은 고정·타임라인만 스크롤이라 스크롤 시 1px connector 가 고정 3px
+  leading 과 만나는 지점에서 한 선의 굵기가 달라 보임 → **전부 3px 통일**로 해소(스크롤
+  위치 무관). (사용자 결정 2026-06-05.)
+
+**모달 하단 radius / 스크롤바**:
+- `.timeline` 에 `margin-bottom: 14px` — 스크롤바 down-arrow 가 모달 12px 하단 모서리를
+  덮지 않도록(radius 12 + 2px 여유). 모달 우하단 radius 가 온전히 보임. (사용자 지적 2026-06-05.)
+
+**방향/신뢰도**: 전용 칩 없음 — 방향은 서술 문장으로 전달, 변동폭 값 텍스트는 회색
+(`#e5e5e5`, 빨강/초록 아님). (사용자 결정 2026-06-05: 디자인 그대로.)
+
+**상태**:
+- **로딩**(live, 예측 fetch 중 또는 이슈 미준비): `AnalyzingText` "AI가 예측을 분석하고 있어요".
+- **콜드스타트**(event_outcome 표본 부족 → `contributingIssues===0`): 칩 값 = "데이터 부족",
+  서술 = "지금은 예측 데이터를 축적중인 시기예요. 데이터가 충분히 쌓이면 예측 결과를 볼 수
+  있어요. 며칠만 더 기다려주세요." (사용자 결정 2026-06-05.)
+- **fixture 모드**: `mockStockPrediction`(종목 이슈 signal→방향, 방향별 band/기간, 템플릿 서술)
+  으로 채워 디자인대로 표시. live는 `/api/predict-stock` 실호출.
+- Tablet/Mobile: 모달 자체가 `display:none` (§14-6) → 예측 블록도 비표시.
 - 클릭 시: **수정 모달 자동 오픈** (해당 포트폴리오 기준).

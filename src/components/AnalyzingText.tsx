@@ -1,8 +1,8 @@
 import styles from "./AnalyzingText.module.css";
 
-/** "Analyzing…" placeholder shown by the central ticker (desktop) and top
- *  ticker (tablet/mobile) while the analysis pipeline is in flight. Inherits
- *  the parent's font/color; adds a gentle pulse + sequential dots. */
+/** "Analyzing…" placeholder shown by the central ticker (desktop), top ticker
+ *  (tablet/mobile), and the prediction block (Step 5) while a pipeline is in
+ *  flight. Inherits the parent's font/color; adds a gentle pulse + dots. */
 export function AnalyzingText() {
   return (
     <span className={styles.wrap}>

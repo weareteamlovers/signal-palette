@@ -128,6 +128,92 @@
   z-index: 10;
 }
 
+/* --- Reaction prediction summary (Step 5 / Phase 4, Figma node 83:522) ---
+   Fixed section between the sticky header and the scrollable timeline. Two
+   segmented chips (영향 기간 / 예상 변동폭) + the prediction narrative.
+   Verified coords: chips frame y=198 (modal-rel 84) h=34 radius 12; outer pill
+   #858a9e, value box #31343f; text Roboto SemiBold 16 #e5e5e5. Narrative frame
+   y=249 (modal-rel 135), Roboto SemiBold 16 white. */
+.prediction {
+  position: relative;
+  flex: 0 0 auto;
+  /* chips at modal-rel y=84; header reserves 65 → 19px lead. left 56 = x=385. */
+  padding: 19px 28px 14px 56px;
+}
+
+/* Pipeline spine through the prediction block — continues into the timeline's
+   leading line. The leading line (Figma node 84:987) is 3px weight (vs the 1px
+   inter-issue connectors, node 84:988+); centered on x=36.5 so left=35. */
+.predLine {
+  position: absolute;
+  left: 35px; /* 3px wide, centered on the dot column (center 36.5) */
+  top: 13px;
+  bottom: 0;
+  width: 3px;
+  background: #ffffff;
+}
+
+.predChips {
+  display: flex;
+  gap: 20px; /* pill1 ends x=538, pill2 starts x=558 */
+}
+
+.predChip {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  background: var(--btn-secondary-bg); /* #858a9e */
+  border-radius: 12px;
+}
+
+.predChipLabel {
+  padding: 0 11px 0 12px; /* label 12px from pill left, 11px before value box */
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1;
+  color: #e5e5e5;
+  white-space: nowrap;
+}
+
+.predChipValue {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 12px;
+  background: var(--btn-action-bg); /* #31343f, flush to the pill's right edge */
+  border-radius: 12px;
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1;
+  color: #e5e5e5;
+  white-space: nowrap;
+}
+
+.predNarrative {
+  /* narrative x=387 → modal-rel 58 (section pad-left 56 + 2). Top: chips
+     bottom (118) → 135 = 17px. Width bounded by the 28px right padding. */
+  margin: 17px 0 0 2px;
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 19px;
+  color: #ffffff;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.predLoading {
+  display: flex;
+  align-items: center;
+  min-height: 130px;
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: 16px;
+  color: #e5e5e5;
+}
+
 /* --- Scrollable timeline ------------------------------------------------ */
 
 .timeline {
@@ -137,6 +223,49 @@
      scroll vertically. Avoids the overflow-y:auto → overflow-x:auto gotcha
      that produced a stray horizontal scrollbar when a date ran long. */
   overflow: hidden auto;
+  /* Bottom gap so the scrollbar (and its down-arrow) clears the modal's 12px
+     bottom corners — otherwise the square arrow button covers the bottom-right
+     radius. radius 12 + 2px breathing room. */
+  margin-bottom: 14px;
+  /* Scrollbar: track blended into the modal bg (#444857), thumb + arrows
+     #e5e5e5 (user-specified). Firefox + spec. */
+  scrollbar-color: #e5e5e5 #444857;
+  scrollbar-width: thin;
+}
+
+/* Webkit (Chrome/Edge/Safari) — track #444857, thumb + SVG arrows #e5e5e5. */
+.timeline::-webkit-scrollbar {
+  width: 10px;
+}
+.timeline::-webkit-scrollbar-track {
+  background: #444857;
+}
+.timeline::-webkit-scrollbar-thumb {
+  background: #e5e5e5;
+  border-radius: 5px;
+}
+.timeline::-webkit-scrollbar-button {
+  background: #444857;
+  height: 10px;
+  width: 10px;
+  display: block;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+.timeline::-webkit-scrollbar-button:vertical:start {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><polygon points='5,3 8,7 2,7' fill='%23e5e5e5'/></svg>");
+}
+.timeline::-webkit-scrollbar-button:vertical:end {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><polygon points='5,7 8,3 2,3' fill='%23e5e5e5'/></svg>");
+}
+/* Suppress the doubled buttons Webkit shows by default. */
+.timeline::-webkit-scrollbar-button:vertical:start:decrement,
+.timeline::-webkit-scrollbar-button:vertical:end:increment {
+  display: block;
+}
+.timeline::-webkit-scrollbar-button:vertical:start:increment,
+.timeline::-webkit-scrollbar-button:vertical:end:decrement {
+  display: none;
 }
 
 /* Inner content sizer — gives the absolute children something to push against
@@ -150,10 +279,14 @@
 /* Vertical connector line — 1px white, 48 tall.
    Line i (0-indexed) sits at top = i * 81 (timeline-relative).
    Line 0 lives above box 0; line i ≥ 1 lives between box i-1 and box i. */
+/* Whole pipeline spine is a uniform 3px (matches the prediction .predLine).
+   Uniform width avoids the taper that showed when a connector scrolled up to
+   meet the fixed 3px leading line. left 35 centers the 3px on the dot column
+   (center 36.5). */
 .line {
   position: absolute;
-  left: 36px; /* 365 - 329 */
-  width: 1px;
+  left: 35px;
+  width: 3px;
   height: 48px;
   background: #ffffff;
 }
