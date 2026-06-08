@@ -18,13 +18,18 @@ import styles from "./StockModal.module.css";
 const PREDICTION_COLD_MESSAGE =
   "지금은 예측 데이터를 축적중인 시기예요. 데이터가 충분히 쌓이면 예측 결과를 볼 수 있어요. 며칠만 더 기다려주세요.";
 
-// Timeline-relative geometry per Figma §14-6:
-//   first connector line top = 0 (frame y=179 - modal y=114 - header 65)
-//   first row top            = 55 (frame y=234 - 179)
-//   step between rows/lines  = 81
-const ROW_FIRST_TOP = 55;
+// Timeline geometry (Figma §14-6 + §15). The leading spine line now lives in
+// the fixed prediction block (.predLine, 3px) and ends ~20px above the first
+// issue; the scrollable timeline holds the issues (first at top=0) and the 1px
+// connectors between consecutive boxes — so scrolling never taper-collides a
+// 1px connector with the fixed 3px lead at the seam.
+//   first issue top               = 0
+//   step between issues           = 81
+//   connector j (issue j↔j+1) top = j*81 + ROW_HEIGHT + CONNECTOR_INSET (h=48)
+const ROW_FIRST_TOP = 0;
 const ROW_GAP = 81;
 const ROW_HEIGHT = 19; // issue color box height
+const CONNECTOR_INSET = 7; // connector inset inside the boxes it joins
 const TIMELINE_BOTTOM_PAD = 16;
 
 /** Format an ISO 8601 UTC timestamp as "YY.MM.DD 오전/오후 H:MM" in KST.
@@ -153,113 +158,120 @@ export function StockModal() {
     n > 0 ? ROW_FIRST_TOP + (n - 1) * ROW_GAP + ROW_HEIGHT + TIMELINE_BOTTOM_PAD : 0;
 
   return (
-    <div
-      ref={modalRef}
-      className={styles.modal}
-      data-variant={activeVariant}
-      role="dialog"
-      aria-modal="true"
-      aria-label={`${activeStockName} 이슈 파이프라인`}
-    >
-      <div className={styles.header}>
-        <div className={styles.headerCompBox}>
-          {ready ? (
-            <ColorBox
-              signal={ready.overall.signal}
-              intensity={ready.overall.intensity}
-              size={32}
-            />
+    <>
+      {/* Dim overlay behind the modal (Figma node 180:394). pointer-events:none
+          keeps it purely visual — the existing outside-click-to-close and
+          click-another-card-to-switch behaviors are untouched. */}
+      <div className={styles.backdrop} aria-hidden />
+      <div
+        ref={modalRef}
+        className={styles.modal}
+        data-variant={activeVariant}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${activeStockName} 이슈 파이프라인`}
+      >
+        <div className={styles.header}>
+          <div className={styles.headerCompBox}>
+            {ready ? (
+              <ColorBox
+                signal={ready.overall.signal}
+                intensity={ready.overall.intensity}
+                size={32}
+              />
+            ) : (
+              <ColorBox size={32} loading />
+            )}
+          </div>
+          <p className={styles.headerLabel}>이슈 파이프라인</p>
+          <p className={styles.headerStockName}>{activeStockName}</p>
+
+          <button
+            type="button"
+            className={styles.chartBtn}
+            data-tooltip="Comming Soon!"
+            aria-label="차트랑 같이 보기 (준비 중)"
+          >
+            차트랑 같이 보기
+          </button>
+          <button
+            type="button"
+            className={styles.closeBtn}
+            onClick={closeStock}
+          >
+            닫기
+          </button>
+        </div>
+
+        {/* Step 5 / Phase 4: reaction prediction summary (영향 기간 · 예상 변동폭
+            chips + narrative). Fixed between the sticky header and the timeline.
+            .predLine is the 3px leading spine (Figma node 84:987); it ends ~20px
+            above the first issue, and that gap stays fixed here so scrolling the
+            timeline never collides a 1px connector with the 3px lead. */}
+        <div className={styles.prediction}>
+          <span className={styles.predLine} aria-hidden />
+          {predBusy ? (
+            <div className={styles.predLoading}>
+              <AnalyzingText />
+            </div>
           ) : (
-            <ColorBox size={32} loading />
+            <>
+              <div className={styles.predChips}>
+                <span className={styles.predChip}>
+                  <span className={styles.predChipLabel}>영향 기간</span>
+                  <span className={styles.predChipValue}>{periodText}</span>
+                </span>
+                <span className={styles.predChip}>
+                  <span className={styles.predChipLabel}>예상 변동폭</span>
+                  <span className={styles.predChipValue}>{bandText}</span>
+                </span>
+              </div>
+              <p className={styles.predNarrative}>{narrativeText}</p>
+            </>
           )}
         </div>
-        <p className={styles.headerLabel}>이슈 파이프라인</p>
-        <p className={styles.headerStockName}>{activeStockName}</p>
 
-        <button
-          type="button"
-          className={styles.chartBtn}
-          data-tooltip="Comming Soon!"
-          aria-label="차트랑 같이 보기 (준비 중)"
-        >
-          차트랑 같이 보기
-        </button>
-        <button
-          type="button"
-          className={styles.closeBtn}
-          onClick={closeStock}
-        >
-          닫기
-        </button>
-      </div>
+        <div className={styles.timeline}>
+          <div
+            className={styles.timelineInner}
+            style={{ height: innerHeight }}
+          >
+            {/* N-1 connectors, one between each adjacent pair of issues. The
+                leading line is the fixed .predLine in the prediction block. */}
+            {visible.slice(1).map((_, j) => (
+              <span
+                key={`line-${j}`}
+                className={styles.line}
+                style={{ top: j * ROW_GAP + ROW_HEIGHT + CONNECTOR_INSET }}
+              />
+            ))}
 
-      {/* Step 5 / Phase 4: reaction prediction summary (영향 기간 · 예상 변동폭
-          chips + narrative). Fixed between the sticky header and the timeline.
-          The connector line continues the pipeline spine from here (Figma
-          node 84:987) down into the timeline's leading line. */}
-      <div className={styles.prediction}>
-        <span className={styles.predLine} aria-hidden />
-        {predBusy ? (
-          <div className={styles.predLoading}>
-            <AnalyzingText />
-          </div>
-        ) : (
-          <>
-            <div className={styles.predChips}>
-              <span className={styles.predChip}>
-                <span className={styles.predChipLabel}>영향 기간</span>
-                <span className={styles.predChipValue}>{periodText}</span>
-              </span>
-              <span className={styles.predChip}>
-                <span className={styles.predChipLabel}>예상 변동폭</span>
-                <span className={styles.predChipValue}>{bandText}</span>
-              </span>
-            </div>
-            <p className={styles.predNarrative}>{narrativeText}</p>
-          </>
-        )}
-      </div>
-
-      <div className={styles.timeline}>
-        <div
-          className={styles.timelineInner}
-          style={{ height: innerHeight }}
-        >
-          {/* N connector lines: 1 above the first box (i=0) + N-1 between
-              adjacent pairs (i=1..N-1). Step 81. */}
-          {visible.map((_, i) => (
-            <span
-              key={`line-${i}`}
-              className={styles.line}
-              style={{ top: i * ROW_GAP }}
-            />
-          ))}
-
-          {visible.map((issue, i) => (
-            <div
-              key={`row-${i}-${issue.text}`}
-              className={styles.row}
-              style={{ top: ROW_FIRST_TOP + i * ROW_GAP }}
-            >
-              <span className={styles.rowBoxWrap}>
-                <ColorBox
-                  signal={issue.signal}
-                  intensity={issue.intensity}
-                  size={19}
-                />
-              </span>
-              <span className={styles.rowContent}>
-                <ArticleLink url={issue.source?.url} className={styles.rowText}>
-                  {issue.text}
-                </ArticleLink>
-                <span className={styles.rowTime}>
-                  {mounted && issue.createdAt ? formatKst(issue.createdAt) : "-"}
+            {visible.map((issue, i) => (
+              <div
+                key={`row-${i}-${issue.text}`}
+                className={styles.row}
+                style={{ top: ROW_FIRST_TOP + i * ROW_GAP }}
+              >
+                <span className={styles.rowBoxWrap}>
+                  <ColorBox
+                    signal={issue.signal}
+                    intensity={issue.intensity}
+                    size={19}
+                  />
                 </span>
-              </span>
-            </div>
-          ))}
+                <span className={styles.rowContent}>
+                  <ArticleLink url={issue.source?.url} className={styles.rowText}>
+                    {issue.text}
+                  </ArticleLink>
+                  <span className={styles.rowTime}>
+                    {mounted && issue.createdAt ? formatKst(issue.createdAt) : "-"}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

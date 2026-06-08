@@ -46,6 +46,9 @@ export const COLORS = {
   btnActionBg: "#31343F", // = cardBg
   textError: "#E9EABC",
   textSuccess: "#C6E4C7",
+  // Tooltip + hover stroke (Figma node 175:2)
+  tooltipBg: "#7D85A2", // hover 툴팁 (was #1A1D24)
+  hoverStroke: "#99A7DA", // 이슈 박스 hover 4px outline
 } as const;
 
 export const RADIUS = {

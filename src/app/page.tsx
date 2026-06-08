@@ -113,7 +113,11 @@ export default async function Page() {
                 <CentralIssue />
               </div>
 
-              <p className={styles.footer}>{FOOTER.text}</p>
+              <p className={styles.footer}>
+                {FOOTER.text.split("팀사랑꾼들.")[0]}
+                <span className={styles.footerAccent}>팀사랑꾼들.</span>
+                {FOOTER.text.split("팀사랑꾼들.")[1]}
+              </p>
 
               {/* Stock detail modal — desktop only (CSS hides below 1280).
                   Renders null when no card is active. */}

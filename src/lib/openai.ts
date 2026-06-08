@@ -493,6 +493,40 @@ export async function embedTexts(texts: string[]): Promise<number[][]> {
   return res.data.map((d) => d.embedding as number[]);
 }
 
+/** Step 5 / backfill: summarize each (mostly English) news headline into one
+ *  Korean issue sentence, aligned 1:1 with the input, so historical events live
+ *  in the same Korean embedding space as the forward pipeline. Batched; on any
+ *  misaligned/unparseable batch it falls back to the raw headlines (keeps
+ *  index alignment). gpt-4o-mini. */
+export async function summarizeToKoreanIssues(headlines: string[]): Promise<string[]> {
+  if (headlines.length === 0) return [];
+  const BATCH = 20;
+  const out: string[] = [];
+  for (let i = 0; i < headlines.length; i += BATCH) {
+    const chunk = headlines.slice(i, i + BATCH);
+    const list = chunk.map((h, j) => `${j + 1}. ${h}`).join("\n");
+    const prompt = `다음 뉴스 헤드라인들을 각각 한국어 한 문장 이슈로 요약하세요. 회사·제품 고유명사와 보편 약어(AI, CEO, ETF 등) 외에는 한국어로 쓰세요. 입력 번호와 1:1로 같은 개수로, 코드 블록·설명 없이 **JSON 문자열 배열**만 출력하세요(예: ["요약1","요약2"]).
+
+${list}`;
+    let parsed: unknown = null;
+    try {
+      const res = await client.responses.create({ model: "gpt-4o-mini", input: prompt });
+      parsed = JSON.parse(extractJson(res.output_text));
+    } catch {
+      parsed = null;
+    }
+    if (Array.isArray(parsed) && parsed.length === chunk.length) {
+      for (let j = 0; j < chunk.length; j++) {
+        const s = parsed[j];
+        out.push(typeof s === "string" && s.trim() ? s.trim() : chunk[j]);
+      }
+    } else {
+      out.push(...chunk); // fallback: raw headlines, alignment preserved
+    }
+  }
+  return out;
+}
+
 /** Step 5 / Phase 2: facts a prediction rationale may use. All numbers are
  *  pre-computed by the deterministic aggregation — the model must NOT invent
  *  any others. */

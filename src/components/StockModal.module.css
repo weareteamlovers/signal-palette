@@ -35,6 +35,21 @@
   top: 343px;
 }
 
+/* Dim overlay behind the modal — Figma node 180:394: a full-frame rectangle
+   (rgba(60,67,81,0.66)) painted just below the modal, so the header + card grid
+   read as dimmed while the modal stays bright. position: fixed dims the whole
+   viewport regardless of page scroll. z-index 99 sits below the modal (100) and
+   above the cards. pointer-events: none keeps it purely visual — the document
+   mousedown listener still handles outside-click-to-close and clicking another
+   card to switch the active stock, both unchanged. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(60, 67, 81, 0.66);
+  z-index: 99;
+  pointer-events: none;
+}
+
 /* --- Sticky header (frame y=140..174 → modal-relative 26..60; reserve 65
        so the first connector line fits its 5px lead-in cleanly). --------- */
 
@@ -115,10 +130,10 @@
   bottom: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
-  background: #1a1d24;
+  background: var(--tooltip-bg);
   color: #ffffff;
   padding: 6px 12px;
-  border-radius: 4px;
+  border-radius: 12px;
   font-family: var(--font-base);
   font-size: 16px;
   font-weight: 600;
@@ -137,20 +152,25 @@
 .prediction {
   position: relative;
   flex: 0 0 auto;
-  /* chips at modal-rel y=84; header reserves 65 → 19px lead. left 56 = x=385. */
-  padding: 19px 28px 14px 56px;
+  /* chips at modal-rel y=84; header reserves 65 → 19px lead. left 56 = x=385.
+     bottom 37 = Figma gap from narrative (y=325) to first issue (y=362); the
+     leading line + this gap belong to the fixed block (not the scroll area). */
+  padding: 19px 28px 37px 56px;
 }
 
-/* Pipeline spine through the prediction block — continues into the timeline's
-   leading line. The leading line (Figma node 84:987) is 3px weight (vs the 1px
-   inter-issue connectors, node 84:988+); centered on x=36.5 so left=35. */
+/* Leading spine line (Figma node 84:987), 3px — the only 3px line; the timeline
+   connectors (.line) are 1px. Ends 20px above the first issue (= the prediction
+   block's bottom edge, where the timeline begins): that fixed 20px gap means a
+   scrolling 1px connector never meets the 3px lead at the seam. Centered on the
+   dot column (center 36.5) so left=35. */
 .predLine {
   position: absolute;
-  left: 35px; /* 3px wide, centered on the dot column (center 36.5) */
+  left: 35px;
   top: 13px;
-  bottom: 0;
+  bottom: 20px;
   width: 3px;
-  background: #ffffff;
+  background: #97a0b1;
+  border-radius: 1.5px; /* round stroke caps (Figma node 83:522), = width/2 */
 }
 
 .predChips {
@@ -276,19 +296,19 @@
   width: 100%;
 }
 
-/* Vertical connector line — 1px white, 48 tall.
+/* Vertical connector line — 1px #97A0B1, 48 tall.
    Line i (0-indexed) sits at top = i * 81 (timeline-relative).
    Line 0 lives above box 0; line i ≥ 1 lives between box i-1 and box i. */
-/* Whole pipeline spine is a uniform 3px (matches the prediction .predLine).
-   Uniform width avoids the taper that showed when a connector scrolled up to
-   meet the fixed 3px leading line. left 35 centers the 3px on the dot column
-   (center 36.5). */
+/* Inter-issue connector — 1px (Figma node 84:988+). The 3px leading line is the
+   fixed .predLine; these only sit between issue boxes in the scroll area. left
+   36 centers the 1px on the dot column (center 36.5). */
 .line {
   position: absolute;
-  left: 35px;
-  width: 3px;
+  left: 36px;
+  width: 1px;
   height: 48px;
-  background: #ffffff;
+  background: #97a0b1;
+  border-radius: 0.5px; /* round stroke caps (Figma node 83:522), = width/2 */
 }
 
 /* Row container — color box + (text + timestamp). The row is bounded to the
@@ -336,9 +356,11 @@
   white-space: nowrap;
 }
 
-/* Tablet/mobile: 4a-3 desktop-only. Hide entire modal below 1280. */
+/* Tablet/mobile: 4a-3 desktop-only. Hide entire modal (and its backdrop)
+   below 1280 — otherwise a card tap could dim the screen with no visible modal. */
 @media (max-width: 1279px) {
-  .modal {
+  .modal,
+  .backdrop {
     display: none;
   }
 }

@@ -1,5 +1,8 @@
 .main {
-  min-height: 100vh;
+  /* Height fits the content (the fixed-height frame) — no min-height:100vh, so
+     a window taller than the 1167 design doesn't add an empty band below the
+     footer. The viewport area beyond the page shows html/body's --bg-page
+     (same dark), so there's no white gap. */
   background: var(--bg-page);
   display: flex;
   flex-direction: column;
@@ -67,12 +70,16 @@
   font-weight: 600;
   font-size: 14px;
   line-height: 16px;
-  color: var(--text-primary);
+  /* Figma node 76:510: base text #616576; team name accented via .footerAccent. */
+  color: #616576;
   white-space: nowrap;
   left: 477px;
-  /* y=1145 per Figma 18:389 (verified 2026-05-26). Earlier 1138 was off
-     by 7px; corrected so spare modal bottom (1139) sits 6px above footer. */
-  top: 1145px;
+  top: 1160px; /* confirmed position (Figma 76:510 = 1145); .main fits content height */
+}
+
+/* "팀사랑꾼들." segment — Figma node 76:510 (#b2b5a7). */
+.footerAccent {
+  color: #b2b5a7;
 }
 
 /* --- Tablet (768 ≤ width < 1280) --- */

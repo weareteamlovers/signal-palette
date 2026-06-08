@@ -52,14 +52,15 @@
   text-align: center;
 }
 
-/* --- Row separators (7 lines, 1px white, between the 8 rows) ------------ */
+/* --- Row separators (7 lines, 1px #97A0B1, between the 8 rows) ---------- */
 
 .separator {
   position: absolute;
   left: 14px; /* 415 - 401 */
   width: 450px;
   height: 1px;
-  background: #ffffff;
+  background: #97a0b1;
+  border-radius: 0.5px; /* round stroke caps (Figma node 77:3), = height/2 */
 }
 
 /* --- Sortable row wrapper (4a-6-4) -------------------------------------- */
@@ -129,7 +130,7 @@
   cursor: not-allowed;
 }
 
-/* Drag handle: three 1px white lines stacked at y=0/5/10 relative to handle.
+/* Drag handle: three 1px #97A0B1 lines stacked at y=0/5/10 relative to handle.
    touch-action: none prevents the browser from intercepting touch gestures
    so PointerSensor receives the events cleanly. */
 .handle {
@@ -150,7 +151,8 @@
   left: 0;
   width: 100%;
   height: 1px;
-  background: #ffffff;
+  background: #97a0b1;
+  border-radius: 0.5px; /* round stroke caps (Figma node 77:3), = height/2 */
 }
 
 /* --- Footer buttons ----------------------------------------------------- */

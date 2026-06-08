@@ -104,10 +104,11 @@
   bottom: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
-  background: #1a1d24;
+  /* Figma node 175:389: blue-grey pill, radius 12, ~8/35 padding (h=34). */
+  background: var(--tooltip-bg);
   color: #ffffff;
-  padding: 6px 12px;
-  border-radius: 4px;
+  padding: 8px 35px;
+  border-radius: 12px;
   font-family: var(--font-base);
   font-size: 16px;
   font-weight: 600;
@@ -115,4 +116,14 @@
   white-space: nowrap;
   pointer-events: none;
   z-index: 10;
+}
+
+/* Hover stroke (Figma node 175:278): 4px #99a7da on a hovered issue box (mouse)
+   or a touch-opened one. Outline (not border) keeps the box geometry exact;
+   higher specificity than .active so hover takes over the white ticker stroke. */
+.box[data-tooltip]:hover,
+.box[data-tooltip].tooltipOpen {
+  outline: 4px solid var(--hover-stroke);
+  outline-offset: 0;
+  z-index: 2;
 }

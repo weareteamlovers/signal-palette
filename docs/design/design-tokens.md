@@ -189,10 +189,18 @@ linear-gradient(
 
 텍스트: `시그널 팔레트 © 2026 팀사랑꾼들. All rights reserved.`
 
-> Figma 직접 검증 (2026-05-26): 이전 표기 y=1138 은 7px off. spare 모달
-> (§14-6, bottom=1139) 와 footer 사이 의도된 6px gap 을 만들려면 footer
-> y=1145 가 맞다. `src/lib/design-tokens.ts` 와 `src/app/page.module.css`
-> 둘 다 1145 로 동기화.
+**색상 (Figma node `76:510`, 2026-06-05 검증)**: 기본 `#616576`, "팀사랑꾼들." 만
+`#b2b5a7` (`.footerAccent` span). 이전엔 단색 `--text-primary`(#fff) 였음 → 정정.
+
+**위치**: footer 는 프레임 안 `position:absolute; left:477`. 데스크탑 `top:1160`
+(**확정값** 2026-06-05 — Figma 76:510 은 1145 이나 사용자가 1160 으로 고정). tablet
+`268/1808`, mobile `95/1786`.
+
+> **2026-06-05**: 창 높이 > 1167(디자인 프레임) 일 때 footer 아래로 빈 어두운 영역이
+> 생겨 떠 보이던 문제 → `<main>` 의 `min-height:100vh` **제거**해서 **페이지 높이를
+> 콘텐츠에 맞춤**. 뷰포트가 페이지보다 크면 그 아래는 html/body 의 `--bg-page`(동일
+> 다크)가 채워 흰 여백 없음. (flex sticky-footer 도 시도했으나 큰 창에서 footer 가
+> 콘텐츠와 분리돼 안 보여 폐기.)
 
 ---
 
@@ -229,14 +237,17 @@ linear-gradient(
 | 항목 | 값 |
 |---|---|
 | 적용 범위 | IssueGrid의 10×2 컬러박스만. 빈 박스(`signal=empty`)는 `data-tooltip` 미부여로 자동 제외 |
-| 배경 | `#1a1d24` |
+| 배경 | **`--tooltip-bg` `#7d85a2`** (2026-06-05 Figma node 175:389 재디자인 — 기존 `#1a1d24` 다크 → 블루그레이) |
 | 글자 | `#FFFFFF`, 16px / 19px line-height, weight 600 (종목명과 동일 스타일) |
-| 패딩 | 6px 12px |
-| 모서리 | radius 4px |
+| 패딩 | **8px 35px** (Figma 컨테이너 261×34 / 텍스트 191 기준) |
+| 모서리 | **radius 12px** (기존 4 → 12) |
 | 위치 | 박스 위, 가운데 정렬 (`bottom: calc(100% + 6px)`, `left: 50%`, `transform: translateX(-50%)`) |
 | pointer-events | none |
 | z-index | 10 |
 | 내용 | 이슈 텍스트 (HTML 기본 `title` 속성 대신 `data-tooltip` + CSS `::after`) |
+| **hover stroke** | 마우스 hover(또는 터치 `tooltipOpen`) 시 컬러박스에 `outline: 4px solid` **`--hover-stroke` `#99a7da`** (Figma node 175:278). `.active`(흰 4px 트레이서)보다 specificity 높아 hover 시 우선 |
+
+> **다른 다크 툴팁도 동일 색/radius 적용** (EditButton "로그인 후…", StockModal chartBtn "Comming Soon!"): bg `--tooltip-bg` + radius 12. 단 버튼 툴팁은 짧아 패딩은 기존 `6px 12px` 유지 (이슈 툴팁만 Figma 8/35).
 
 ---
 
@@ -482,7 +493,7 @@ linear-gradient(
 
 **수정 버튼 (로그인 전) 동작**:
 - hover 또는 click 시 `로그인 후 바로 이용 가능해요` 툴팁 표시
-- 툴팁 스타일은 기존 컬러박스 다크 툴팁 (`#1a1d24`) 재사용
+- 툴팁 스타일은 컬러박스 툴팁 공유 (2026-06-05 `--tooltip-bg` `#7d85a2`/radius 12 로 재디자인, §10-3 참고)
 
 ### 14-3. Header — 로그인 후
 
@@ -513,13 +524,13 @@ linear-gradient(
 | 항목 | Figma 노드 | 위치 | 크기 | 스타일 |
 |---|---|---|---|---|
 | 모달 외곽 | `77:389` | x=401, y=117 | 477 × 407 | bg `--modal-bg-elevated` (#444857), radius 12 |
-| 행 separator (Line 1~7) | `78:391` 외 | x=415, width=450 | 0 (line, 1px white) | y=166, 209, 252, 295, 338, 381, 424 (간격 43px) |
+| 행 separator (Line 1~7) | `78:391` 외 | x=415, width=450 | 0 (line, 1px `#97A0B1`, round cap) | y=166, 209, 252, 295, 338, 381, 424 (간격 43px) |
 | 행 영역 | — | y=131~461 | 행당 43px | 8행 고정 |
 | 번호 (1~8) | `78:407` 외 | 행마다 x=420 | 10 × 19 | Roboto SemiBold 16px, white |
 | 종목명 (편집 가능) | `78:405` 외 | 행마다 x=445 | auto × 19 | Roboto SemiBold 16px, white |
 | 변경 버튼 (bg) | `78:433` 외 | 행마다 x=792 | 38 × 29 | bg `--btn-action-bg` (#31343f), radius **12** |
 | 변경 버튼 (text) | `78:434` 외 | 행마다 x=799 | 24 × 15 | Roboto SemiBold **13px**, color `#e5e5e5` |
-| 드래그 핸들 (≡) | `78:439` 외 | 행마다 x=841 | 20 × 11 | 3선 (y +0/+5/+10), stroke white 1px |
+| 드래그 핸들 (≡) | `78:439` 외 | 행마다 x=841 | 20 × 11 | 3선 (y +0/+5/+10), stroke `#97A0B1` 1px, round cap |
 | 취소 버튼 (bg) | `78:436` | x=772, y=480 | 45 × 34 | bg `--btn-secondary-bg` (#858a9e), radius 12 |
 | 취소 버튼 (text) | `78:437` | x=780, y=487 | — | Roboto SemiBold 16px, color `#e5e5e5` (추정 — 다른 footer 버튼과 동일 패턴) |
 | 완료 버튼 (bg) | `78:402` | x=824, y=480 | 45 × 34 | bg `--btn-action-bg` (#31343f), radius 12 |
@@ -627,7 +638,7 @@ linear-gradient(
 | 이슈 텍스트 | `84:918` 외 | x=387 | Roboto SemiBold 16px, white |
 | 이슈 timestamp | `84:928` 외 | 이슈 텍스트 끝 + gap 8px, 이슈 텍스트와 같은 inline 흐름 (마지막 줄 끝에 trail) | Roboto SemiBold 12px, color `#e5e5e5` |
 | 행 간격 | — | 81px (컬러박스 기준) | y=234, 315, 396, ... (81 step) |
-| 세로 연결선 | `84:987` 외 | x=365 (박스 center), height 48 | **N 개 (이슈 N 개 기준)**: 첫 박스 위 1 + 박스 사이 N-1. timeline-relative top = `i × 81` (i=0..N-1). stroke white 1px |
+| 세로 연결선 | `84:987` 외 | x=365 (박스 center), height 48 | **N 개 (이슈 N 개 기준)**: 첫 박스 위 1 + 박스 사이 N-1. timeline-relative top = `i × 81` (i=0..N-1). stroke `#97A0B1`, round cap (predLine 3px / line 1px — §15) |
 
 **모달 룰**:
 - 이슈는 최대 20개 시간순(최신 first) 표시. 20개 미만이면 그만큼만 표시 (placeholder 없음).
@@ -696,7 +707,7 @@ OAuth 첫 로그인 시 1회성 표시. 다른 모달과 달리 **닫기 불가*
 
 | 항목 | 룰 |
 |---|---|
-| Backdrop overlay | **없음**. dim/blur 처리하지 않음. 수정 중에도 카드 그리드의 색을 확인할 수 있도록 의도된 디자인 |
+| Backdrop overlay | **종목 모달(StockModal)**: dim overlay **있음** — Figma node `180:394` (프레임 전체를 덮는 사각형, `rgba(60,67,81,0.66)`, 모달 `83:909` 바로 뒤). `position: fixed; inset: 0; z-index: 99` + **`pointer-events: none`** (순수 시각 효과 — 기존 외부 클릭 닫기 / 다른 카드 클릭 전환 동작 그대로 유지). **수정/닉네임 모달**: **없음** (의도 — 수정 중 카드 그리드 색 확인용) |
 | ESC 키 | 모달 닫기 (단 닉네임 모달은 예외 — 닫기 불가) |
 | 모달 외부 클릭 | 모달 닫기 (단 닉네임 모달은 예외) |
 | z-index | 헤더/푸터/카드 그리드 위. 변경 dropdown 은 수정 모달 위 (한 단계 더 위) |
@@ -737,12 +748,19 @@ OAuth 첫 로그인 시 1회성 표시. 다른 모달과 달리 **닫기 불가*
 - Roboto SemiBold **16px**, `#ffffff`, line-height 19px (leading-normal).
 - Phase 3 `narrateStockPrediction` 출력 (live) / fixture 목 (local). 가변 줄 수.
 
-**파이프라인 연결선** — 전체 **3px 통일** `#ffffff`, left 35 (3px가 dot 열 중심 36.5
-정렬). `.predLine`(예측 블록) + 타임라인 `.line`(모든 줄) 모두 3px.
-- Figma leading 선(84:987)은 3px(사용자 지적 2026-06-05). 처음엔 leading 3 / connector 1px
-  로 했으나, 예측 블록은 고정·타임라인만 스크롤이라 스크롤 시 1px connector 가 고정 3px
-  leading 과 만나는 지점에서 한 선의 굵기가 달라 보임 → **전부 3px 통일**로 해소(스크롤
-  위치 무관). (사용자 결정 2026-06-05.)
+**파이프라인 연결선** `#97A0B1` + 끝점 round cap (2026-06-07, Figma node 83:522 — 이전 `#ffffff`/각진 끝):
+- 두 선 모두 색 `#97a0b1`, 끝점은 `border-radius: width/2` 로 round (predLine 1.5px / line 0.5px). 두께·좌표는 불변.
+- **Leading 선** (`.predLine`, Figma 84:987): **3px**, left 35 (중심 36.5). 예측 블록
+  **고정** 영역에 속함. `top:13` ~ `bottom:20` → narrative 아래로 내려와 **첫 이슈 20px
+  위**에서 끝남.
+- **이슈 간 connector** (`.line`, 84:988+): **1px**, left 36 (중심 36.5). 스크롤 영역에만
+  존재, 이슈 박스 사이에만 (`top = j*81 + 19 + 7`, h=48, j=0..N-2).
+- **핵심**: leading 선과 첫 이슈 사이 20px 여백을 **고정 블록**이 소유(예측 섹션
+  `padding-bottom:37`) → 타임라인(첫 이슈 top=0)을 스크롤해도 1px connector 가 3px
+  leading 과 seam 에서 만나 굵기가 달라 보이는 일이 없음. (이전 "전부 3px 통일"은 폐기 —
+  서술 옆만 3px, 나머지 1px 로 복구.)
+- **서술 하단 간격**: narrative(Figma y=325) → 첫 이슈(y=362) = **37px** (예측 섹션
+  `padding-bottom`). 이전 ~69px 에서 축소해 Figma 와 일치.
 
 **모달 하단 radius / 스크롤바**:
 - `.timeline` 에 `margin-bottom: 14px` — 스크롤바 down-arrow 가 모달 12px 하단 모서리를

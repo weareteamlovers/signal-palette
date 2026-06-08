@@ -14,8 +14,11 @@ function serviceClient(): SupabaseClient | null {
 }
 
 /** A row to log on an issue's first appearance. `embedding` is the pgvector
- *  text form ("[0.1,0.2,…]"); `t0` is ISO 8601. */
+ *  text form ("[0.1,0.2,…]"); `t0` is ISO 8601. `id` is optional — the forward
+ *  capture lets the DB default it, but the backfill sets it explicitly so the
+ *  matching event_outcome can reference it without a round-trip. */
 export interface EventRow {
+  id?: string;
   stock_name: string;
   market?: string;
   symbol?: string;

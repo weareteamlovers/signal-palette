@@ -27,18 +27,19 @@
   }
 }
 
-/* Dark tooltip — mirrors ColorBox.module.css §100-118. Triggered only when a
-   data-tooltip attribute is set (pre-login: "로그인 후 바로 이용 가능해요"). */
+/* Tooltip — mirrors ColorBox.module.css. Triggered only when a data-tooltip
+   attribute is set (pre-login: "로그인 후 바로 이용 가능해요"). New blue-grey
+   pill style (Figma 175:389); button tooltip keeps its tighter 6/12 padding. */
 .btn[data-tooltip]:hover::after {
   content: attr(data-tooltip);
   position: absolute;
   bottom: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
-  background: #1a1d24;
+  background: var(--tooltip-bg);
   color: #ffffff;
   padding: 6px 12px;
-  border-radius: 4px;
+  border-radius: 12px;
   font-family: var(--font-base);
   font-size: 16px;
   font-weight: 600;

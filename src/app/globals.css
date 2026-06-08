@@ -31,6 +31,11 @@
   --text-error: #e9eabc;        /* 닉네임 중복 에러 */
   --text-success: #c6e4c7;      /* 닉네임 설정 완료 (2초) */
 
+  /* Tooltip + hover stroke (Figma node 175:2). Replaces the old dark #1a1d24
+     tooltip; the stroke is the 4px outline on a hovered issue box. */
+  --tooltip-bg: #7d85a2;        /* hover 툴팁 배경 (Figma 175:389) */
+  --hover-stroke: #99a7da;      /* 이슈 박스 hover 4px stroke (Figma 175:278) */
+
   --text-primary: #ffffff;
 
   /* Radii */
