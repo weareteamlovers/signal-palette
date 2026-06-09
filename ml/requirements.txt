@@ -1,0 +1,6 @@
+# Step 5 / prediction model — offline training pipeline (Codespaces, CPU).
+# Inference runs in TypeScript on Vercel (pure forward pass), so these deps
+# are training-only and never ship to the app.
+torch
+numpy
+requests
