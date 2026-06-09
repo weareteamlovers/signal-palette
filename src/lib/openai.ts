@@ -612,3 +612,83 @@ ${facts}`;
   const response = await client.responses.create({ model: "gpt-4o-mini", input: prompt });
   return response.output_text.trim();
 }
+
+/** Step 5: GPT prediction mode. One gpt-4o-mini call takes the stock's current
+ *  issues and returns the predicted reaction directly — color (7-level),
+ *  impact period, expected sector-relative band, confidence, and a 종합 서술.
+ *  Unlike the k-NN "model" mode the numbers are GPT's judgment (not a validated
+ *  predictor); the mode switch (predict/mode.ts) lets us swap engines later.
+ *  Returns normalized values (band as fractions); throws on a bad response. */
+const PRED_COLORS = [
+  "positive_strong", "positive_mid", "positive_mild", "neutral",
+  "negative_mild", "negative_mid", "negative_strong",
+] as const;
+export type PredColor = (typeof PRED_COLORS)[number];
+
+export interface GptStockPredictionRaw {
+  color: PredColor;
+  impactPeriod: { from: number; to: number };
+  band: { low: number; high: number }; // fractions, e.g. -0.025 = −2.5%
+  confidence: "low" | "medium" | "high";
+  rationale: string;
+}
+
+export async function requestStockPredictionGpt(
+  stockName: string,
+  issues: ReadonlyArray<Pick<Issue, "text" | "signal" | "intensity" | "importance">>,
+): Promise<GptStockPredictionRaw> {
+  const lines = issues
+    .slice(0, 20)
+    .map((i, idx) => `${idx + 1}. [${i.signal}/${i.intensity}] ${i.text}`)
+    .join("\n");
+
+  const prompt = `당신은 주식 시장 애널리스트입니다. 아래는 "${stockName}"의 현재 이슈 목록입니다. 이 이슈들을 종합해 향후 1~10거래일 동안 이 종목의 섹터 대비 초과수익(abnormal return) 반응을 예측하세요.
+
+아래 JSON 형식으로만 출력하세요(코드블록·설명 금지):
+{
+  "color": "positive_strong|positive_mid|positive_mild|neutral|negative_mild|negative_mid|negative_strong",
+  "impact_period": { "from": 1, "to": 5 },
+  "band_low_pct": -2.5,
+  "band_high_pct": 1.2,
+  "confidence": "low|medium|high",
+  "rationale": "1~2문장 한국어 종합 서술"
+}
+
+규칙:
+- color = 예측 초과수익의 방향·강도(긍정 강/중/약, 중립, 부정 약/중/강).
+- impact_period.from ≤ to, 둘 다 1~10 거래일.
+- band_low_pct ≤ band_high_pct (섹터 대비 초과수익 %; 음수 가능).
+- rationale 는 위 밴드·기간과 일관되게, 새 수치를 따로 지어내지 말 것.
+- 이슈가 빈약하거나 방향이 불분명하면 neutral + 좁은 밴드 + low.
+
+[이슈]
+${lines}`;
+
+  const response = await client.responses.create({ model: "gpt-4o-mini", input: prompt });
+  const obj = parseGptObject(response.output_text, stockName);
+
+  const color = (PRED_COLORS as readonly string[]).includes(obj.color as string)
+    ? (obj.color as PredColor)
+    : "neutral";
+  const ip = (obj.impact_period ?? {}) as { from?: number; to?: number };
+  const clamp = (v: unknown, d: number) =>
+    Math.min(10, Math.max(1, Math.round(typeof v === "number" ? v : d)));
+  let from = clamp(ip.from, 1);
+  let to = clamp(ip.to, from);
+  if (to < from) [from, to] = [to, from];
+  const lowPct = typeof obj.band_low_pct === "number" ? obj.band_low_pct : 0;
+  const highPct = typeof obj.band_high_pct === "number" ? obj.band_high_pct : 0;
+  const low = Math.min(lowPct, highPct) / 100;
+  const high = Math.max(lowPct, highPct) / 100;
+  const conf = (["low", "medium", "high"] as const).includes(obj.confidence as never)
+    ? (obj.confidence as "low" | "medium" | "high")
+    : "medium";
+
+  return {
+    color,
+    impactPeriod: { from, to },
+    band: { low, high },
+    confidence: conf,
+    rationale: typeof obj.rationale === "string" ? obj.rationale.trim() : "",
+  };
+}

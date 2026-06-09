@@ -7,6 +7,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { CURRENT_STOCK_NAMES, SPARE_STOCK_NAMES } from "@/data/default-portfolio";
 import type { Market, StockMeta } from "@/data/stock-catalog";
+import type { StockPrediction } from "@/lib/predict/types";
 import type { Issue, OverallSignal } from "@/types";
 
 const TABLE = "stock_analysis";
@@ -48,20 +49,43 @@ export async function readCachedAnalysis(
 }
 
 /** Upsert a fresh analysis. Failures are logged, not thrown — caching is
- *  best-effort and must never break the response. */
+ *  best-effort and must never break the response.
+ *
+ *  `prediction` is optional: when provided (the scheduled refresh path) it's
+ *  written alongside the issues; when omitted (the on-demand /api/analyze cold
+ *  path) the column is left out of the payload entirely, so an existing
+ *  prediction on the row is preserved rather than clobbered with null. */
 export async function writeCachedAnalysis(
   stockName: string,
   issues: Issue[],
   overall: OverallSignal,
+  prediction?: StockPrediction | null,
 ): Promise<void> {
   const supabase = serviceClient();
   if (!supabase) return;
+  const base = {
+    stock_name: stockName,
+    issues,
+    overall,
+    fetched_at: new Date().toISOString(),
+  };
   try {
-    const { error } = await supabase.from(TABLE).upsert(
-      { stock_name: stockName, issues, overall, fetched_at: new Date().toISOString() },
-      { onConflict: "stock_name" },
-    );
-    if (error) console.warn(`[cache] write failed for "${stockName}": ${error.message}`);
+    const row =
+      prediction !== undefined ? { ...base, prediction } : base;
+    const { error } = await supabase.from(TABLE).upsert(row, { onConflict: "stock_name" });
+    if (error) {
+      // Before migration 007 the `prediction` column doesn't exist, which would
+      // reject the whole upsert. Retry without it so the analysis still caches
+      // (the prediction just isn't persisted until the migration is applied).
+      if (prediction !== undefined) {
+        const { error: retry } = await supabase
+          .from(TABLE)
+          .upsert(base, { onConflict: "stock_name" });
+        if (retry) console.warn(`[cache] write failed for "${stockName}": ${retry.message}`);
+      } else {
+        console.warn(`[cache] write failed for "${stockName}": ${error.message}`);
+      }
+    }
   } catch (e) {
     console.warn(`[cache] write threw for "${stockName}"`, e);
   }

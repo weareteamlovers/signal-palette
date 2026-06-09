@@ -2,6 +2,8 @@
 // from a deterministic aggregation of realized excess returns (event_outcome);
 // the LLM only writes the `rationale` narrative on top of them.
 
+import type { OverallSignal } from "@/types";
+
 export type PredictDirection = "up" | "down" | "neutral";
 export type Confidence = "low" | "medium" | "high";
 /** Which retrieval level produced the prediction: this stock's own history,
@@ -74,4 +76,7 @@ export interface StockPrediction {
   contributingIssues: number;
   rationale: string;
   issues: IssuePredictionSummary[];
+  /** Predicted 7-level reaction color (signal + intensity). Populated by the
+   *  GPT prediction mode; optional so the k-NN ("model") mode can omit it. */
+  color?: OverallSignal;
 }

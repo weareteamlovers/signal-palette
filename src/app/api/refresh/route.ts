@@ -9,6 +9,8 @@ import { metaOf, type Market } from "@/data/stock-catalog";
 import { CACHE_MAX_ISSUES, refreshStock } from "@/lib/analyze";
 import { captureIssues } from "@/lib/events/capture";
 import { labelDueEvents } from "@/lib/events/label";
+import { predictStock } from "@/lib/predict/stock";
+import type { StockPrediction } from "@/lib/predict/types";
 import {
   REFRESH_MODE,
   SCHEDULE,
@@ -54,7 +56,16 @@ export async function GET(req: Request) {
   const settled = await Promise.allSettled(
     stale.map(async (name) => {
       const result = await refreshStock(name, CACHE_MAX_ISSUES);
-      await writeCachedAnalysis(name, result.issues, result.overall);
+      // Step 5: bake the stock-level reaction prediction here (once per refresh)
+      // so the modal reads a warm row instead of calling embed+GPT on open.
+      // Best-effort — a prediction failure must not block the analysis cache.
+      let prediction: StockPrediction | null = null;
+      try {
+        prediction = await predictStock(name, result.issues);
+      } catch (e) {
+        console.warn(`[refresh] prediction failed for "${name}"`, e);
+      }
+      await writeCachedAnalysis(name, result.issues, result.overall, prediction);
       // Step 5: log any new issues to the event store (idempotent, best-effort).
       await captureIssues(name, result.issues);
     }),

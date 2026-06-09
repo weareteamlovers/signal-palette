@@ -5,10 +5,11 @@
 // rationale. The colour system's "이슈 → 종목 overall" pattern, on the
 // prediction axis. Server-only.
 
-import { embedTexts, narrateStockPrediction } from "@/lib/openai";
+import { embedTexts, narrateStockPrediction, requestStockPredictionGpt } from "@/lib/openai";
 import { readCachedAnalysis } from "@/lib/supabase/analysis-cache";
-import type { Issue } from "@/types";
+import type { Intensity, Issue, Signal } from "@/types";
 import { DIRECTION_KO, pct, predictIssueCore, type IssueCore } from "./issue";
+import { PREDICTION_MODE } from "./mode";
 import type {
   Confidence,
   IssuePredictionSummary,
@@ -17,6 +18,20 @@ import type {
   StockHorizon,
   StockPrediction,
 } from "./types";
+
+/** 7-level prediction color → signal/intensity + direction (GPT mode). */
+const COLOR_MAP: Record<
+  string,
+  { signal: Signal; intensity: Intensity; direction: PredictDirection }
+> = {
+  positive_strong: { signal: "positive", intensity: "strong", direction: "up" },
+  positive_mid: { signal: "positive", intensity: "mid", direction: "up" },
+  positive_mild: { signal: "positive", intensity: "mild", direction: "up" },
+  neutral: { signal: "neutral", intensity: "mid", direction: "neutral" },
+  negative_mild: { signal: "negative", intensity: "mild", direction: "down" },
+  negative_mid: { signal: "negative", intensity: "mid", direction: "down" },
+  negative_strong: { signal: "negative", intensity: "strong", direction: "down" },
+};
 
 const HORIZONS = [1, 3, 5] as const;
 const NEUTRAL_EPS = 0.003;
@@ -161,6 +176,10 @@ function emptyStockPrediction(
   };
 }
 
+/** Resolve the stock's issues, then route to the active engine (predict/mode.ts):
+ *  GPT mode = one call returns color/period/band/서술; model mode = case-based
+ *  k-NN over the event store. Either result is cached per stock by the refresh
+ *  job, so the modal reads a warm row (0 OpenAI on open). */
 export async function predictStock(
   stockName: string,
   providedIssues?: Issue[],
@@ -169,6 +188,52 @@ export async function predictStock(
     providedIssues ??
     (await readCachedAnalysis(stockName, Number.POSITIVE_INFINITY))?.issues ??
     [];
+  return PREDICTION_MODE === "model"
+    ? predictStockKnn(stockName, issues)
+    : predictStockGpt(stockName, issues);
+}
+
+/** GPT prediction mode — one gpt-4o-mini call returns the full StockPrediction
+ *  (color + impact period + band + 종합 서술). On failure falls back to a
+ *  cold/empty prediction so the caller (refresh/modal) degrades cleanly. */
+export async function predictStockGpt(
+  stockName: string,
+  issues: Issue[],
+): Promise<StockPrediction> {
+  const usable = issues.filter((i) => i.text && i.text.trim());
+  if (usable.length === 0) {
+    return emptyStockPrediction(stockName, issues.length, "분석된 이슈가 없어 종합 예측을 만들 수 없습니다.");
+  }
+  let raw: Awaited<ReturnType<typeof requestStockPredictionGpt>>;
+  try {
+    raw = await requestStockPredictionGpt(stockName, usable);
+  } catch {
+    return emptyStockPrediction(stockName, usable.length, "예측을 일시적으로 가져오지 못했어요.");
+  }
+  const m = COLOR_MAP[raw.color] ?? COLOR_MAP.neutral;
+  const center = (raw.band.low + raw.band.high) / 2;
+  return {
+    stockName,
+    direction: m.direction,
+    band: raw.band,
+    primaryHorizon: raw.impactPeriod.to,
+    impactPeriod: raw.impactPeriod,
+    confidence: raw.confidence,
+    horizons: HORIZONS.map((d) => ({ tradingDays: d, center, low: raw.band.low, high: raw.band.high })),
+    totalIssues: usable.length,
+    contributingIssues: usable.length,
+    rationale: raw.rationale,
+    issues: [],
+    color: { signal: m.signal, intensity: m.intensity },
+  };
+}
+
+/** Case-based (k-NN) model mode — per-issue retrieval + deterministic
+ *  aggregation over the event store; the LLM only narrates. */
+async function predictStockKnn(
+  stockName: string,
+  issues: Issue[],
+): Promise<StockPrediction> {
   const usable = issues.filter((i) => i.text && i.text.trim());
   if (usable.length === 0) {
     return emptyStockPrediction(stockName, issues.length, "분석된 이슈가 없어 종합 예측을 만들 수 없습니다.");

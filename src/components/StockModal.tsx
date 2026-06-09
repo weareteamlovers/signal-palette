@@ -83,6 +83,10 @@ export function StockModal() {
 
   const state = activeStockName ? stocks[activeStockName] : undefined;
   const ready = state && state.status === "ready" ? state.stock : null;
+  // Reaction prediction baked by the scheduled refresh and read from the cache
+  // (Step 5). When present, the modal uses it directly — 0 OpenAI on open.
+  const cachedPrediction =
+    state && state.status === "ready" ? state.prediction ?? null : null;
 
   // Modal sorts by createdAt desc (most recent first). The card grid still
   // uses the 7-bucket order separately.
@@ -93,10 +97,11 @@ export function StockModal() {
     );
   }, [ready]);
 
-  // Step 5 / Phase 4: reaction prediction for the open stock. Fixture mode
-  // serves a deterministic mock (so the design renders fully offline); live
-  // mode calls /api/predict-stock with the stock's own issues. Recomputed when
-  // the active stock (or its loaded issues) changes.
+  // Step 5 / Phase 4: reaction prediction for the open stock.
+  //   - Fixture mode → deterministic mock (renders the design fully offline).
+  //   - Live mode → prefer the refresh-baked prediction from the cache (0 OpenAI
+  //     on open); only a cold / just-searched stock with no cached prediction
+  //     falls back to an on-demand /api/predict-stock compute.
   const [prediction, setPrediction] = useState<StockPrediction | null>(null);
   const [predLoading, setPredLoading] = useState(false);
   useEffect(() => {
@@ -107,6 +112,11 @@ export function StockModal() {
     }
     if (USE_FIXTURE) {
       setPrediction(mockStockPrediction(activeStockName, ready.issues));
+      setPredLoading(false);
+      return;
+    }
+    if (cachedPrediction) {
+      setPrediction(cachedPrediction);
       setPredLoading(false);
       return;
     }
@@ -132,7 +142,7 @@ export function StockModal() {
     return () => {
       cancelled = true;
     };
-  }, [activeStockName, ready]);
+  }, [activeStockName, ready, cachedPrediction]);
 
   if (!activeStockName || !activeVariant) return null;
 

@@ -18,13 +18,22 @@ import {
   USE_FIXTURE,
 } from "@/lib/feature-flags";
 import { aggregateOverall } from "@/lib/overall";
+import type { StockPrediction } from "@/lib/predict/types";
 import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
 import { upsertOwnPortfolio } from "@/lib/supabase/portfolios";
 import type { OverallSignal, Stock } from "@/types";
 
 type StockState =
   | { status: "loading" }
-  | { status: "ready"; stock: Stock; source: "live" | "mock" | "fixture" | "cache" };
+  | {
+      status: "ready";
+      stock: Stock;
+      source: "live" | "mock" | "fixture" | "cache";
+      /** Stock-level reaction prediction, baked by the scheduled refresh and
+       *  read from the cache (Step 5). Absent on cold/on-demand paths — the
+       *  modal then computes it on demand. */
+      prediction?: StockPrediction | null;
+    };
 
 type OverallState =
   | { status: "loading" }
@@ -38,7 +47,12 @@ type Variant = "current" | "spare";
 type ViewportMode = "desktop" | "tablet" | "mobile";
 
 /** Row shape read from / pushed by the stock_analysis cache (Step 4c-8). */
-type CacheRow = { stock_name: string; issues: Stock["issues"]; overall: OverallSignal };
+type CacheRow = {
+  stock_name: string;
+  issues: Stock["issues"];
+  overall: OverallSignal;
+  prediction?: StockPrediction | null;
+};
 
 interface AnalysisValue {
   stocks: Record<string, StockState>;
@@ -243,7 +257,7 @@ export function AnalysisProvider({ current, spare, userId, children }: ProviderP
       try {
         const { data } = await supabase
           .from("stock_analysis")
-          .select("stock_name, issues, overall")
+          .select("stock_name, issues, overall, prediction")
           .in("stock_name", names);
         if (signal.aborted) return;
         if (data && data.length) {
@@ -255,6 +269,7 @@ export function AnalysisProvider({ current, spare, userId, children }: ProviderP
                 status: "ready",
                 stock: { name: row.stock_name, issues: row.issues, overall: row.overall },
                 source: "cache",
+                prediction: row.prediction ?? null,
               };
             }
             return next;
@@ -322,12 +337,18 @@ export function AnalysisProvider({ current, spare, userId, children }: ProviderP
           const name = row.stock_name;
           const issues = row.issues;
           const overall = row.overall;
+          const prediction = row.prediction ?? null;
           // Only patch a stock we're currently showing.
           setStocks((s) =>
             name in s
               ? {
                   ...s,
-                  [name]: { status: "ready", stock: { name, issues, overall }, source: "cache" },
+                  [name]: {
+                    status: "ready",
+                    stock: { name, issues, overall },
+                    source: "cache",
+                    prediction,
+                  },
                 }
               : s,
           );
