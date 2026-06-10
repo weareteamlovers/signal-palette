@@ -29,8 +29,11 @@
 
 /* Tooltip — mirrors ColorBox.module.css. Triggered only when a data-tooltip
    attribute is set (pre-login: "로그인 후 바로 이용 가능해요"). New blue-grey
-   pill style (Figma 175:389); button tooltip keeps its tighter 6/12 padding. */
-.btn[data-tooltip]:hover::after {
+   pill style (Figma 175:389); button tooltip keeps its tighter 6/12 padding.
+   Touch (Step 6-1): .tooltipOpen is set for 3s by ActiveTooltipContext when
+   the button is tapped — same trigger pattern as ColorBox. */
+.btn[data-tooltip]:hover::after,
+.btn[data-tooltip].tooltipOpen::after {
   content: attr(data-tooltip);
   position: absolute;
   bottom: calc(100% + 6px);

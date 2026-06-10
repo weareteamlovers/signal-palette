@@ -3,9 +3,10 @@
    verified against Figma nodes 76:117..76:119 (logged out) and
    83:902 / 83:903 / 83:906 (logged in).
 
-   Desktop only — tablet/mobile placement is a follow-up sub-task; for now we
-   hide the entire block below 1280 so we don't regress the existing responsive
-   layout. */
+   Mobile (<768) placement per §16-1, verified against Figma nodes
+   76:129/76:130/76:131 (58:3, logged out) and 76:1671/76:1672/76:1674
+   (76:1284, logged in). Tablet (768–1279) stays hidden — out of scope for
+   Step 6 (user decision 2026-06-10). */
 
 .root {
   position: absolute;
@@ -133,8 +134,59 @@
   pointer-events: auto;
 }
 
-@media (max-width: 1279px) {
+/* Tablet only (768–1279): no design yet — keep the whole block hidden. */
+@media (min-width: 768px) and (max-width: 1279px) {
   .root {
     display: none;
+  }
+}
+
+/* --- Mobile (width < 768) — §16-1 ---------------------------------------- */
+@media (max-width: 767px) {
+  /* Logged out: "로그인 with" (Bold 8px + " with" 6px, node 76:131) above the
+     Google 30×30 (76:130) / Kakao 20×20 (76:129) logos. */
+  .label {
+    left: 305px;
+    top: 62px;
+    width: 35px;
+    height: 9px;
+  }
+  .label .seg1 {
+    font-size: 8px;
+  }
+  .label .space,
+  .label .seg2 {
+    font-size: 6px;
+  }
+  .google {
+    left: 300px;
+    top: 69px;
+    width: 30px;
+    height: 30px;
+  }
+  .kakao {
+    left: 330px;
+    top: 73px;
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Logged in: mobile shows the nickname once (above the current-portfolio
+     title, node 76:1674) — no top-right user slot. */
+  .userName {
+    display: none;
+  }
+  .centerName {
+    left: 148px;
+    top: 70px;
+    font-size: 9px;
+    line-height: normal;
+  }
+  .logoutBtn {
+    left: 293px;
+    top: 71px;
+    width: 57px;
+    height: 26px;
+    font-size: 12px;
   }
 }

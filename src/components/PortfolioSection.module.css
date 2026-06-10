@@ -130,8 +130,10 @@
     left: 220px;
     top: 1006px;
   }
+  /* Step 6-1: current moved 275 → 251 to clear the auth header slot
+     (Figma 64:819 in 58:3 and 76:1663 in 76:1284 both sit at x=251). */
   .button[data-variant="current"] {
-    left: 275px;
+    left: 251px;
     top: 71px;
   }
   .button[data-variant="spare"] {
