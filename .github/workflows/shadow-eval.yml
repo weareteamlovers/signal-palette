@@ -1,0 +1,74 @@
+name: Shadow Eval
+
+# 예측 color override 후보(H1 within-stock 변동폭 / H2 방향)를 데이터 쌓이는 대로
+# 재검증하는 오프라인 모니터. GitHub 클라우드에서 돌아 Codespace 와 무관하게 동작.
+# 프로덕션은 GPT-only 그대로 — 이 잡은 ml/shadow_log.jsonl 만 갱신한다.
+# 설계/사전등록: ml/SHADOW_EVAL.md
+
+on:
+  schedule:
+    - cron: '0 6 1 * *'   # 매월 1일 06:00 UTC
+  workflow_dispatch:       # 수동 실행
+
+permissions:
+  contents: write          # ml/shadow_log.jsonl 커밋용
+
+concurrency:
+  group: shadow-eval
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: ml/requirements.txt
+
+      - name: Install deps (CPU torch)
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r ml/requirements.txt
+
+      - name: Write .env.local from secrets
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL"
+            echo "SUPABASE_SECRET_KEY=$SUPABASE_SECRET_KEY"
+            echo "OPENAI_API_KEY=$OPENAI_API_KEY"
+          } > .env.local
+
+      - name: Pull labeled events (Supabase → events.npz)
+        working-directory: ml
+        run: python pull_data.py
+
+      # 출처/카테고리 분류는 OPENAI_API_KEY 가 있을 때만 의미. 실패해도 잡은 계속 —
+      # shadow_eval 이 gpt_sentcat 없으면 H1-emb/H2-model 만 돌리도록 graceful.
+      - name: Classify sentiment/category (OpenAI; optional)
+        working-directory: ml
+        continue-on-error: true
+        run: python gpt_sentiment.py
+
+      - name: Shadow evaluation
+        working-directory: ml
+        run: |
+          python shadow_eval.py | tee /tmp/shadow.txt
+          { echo '```'; cat /tmp/shadow.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit shadow log
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ml/shadow_log.jsonl
+          git diff --cached --quiet || git commit -m "chore(shadow-eval): scheduled run $(date -u +%F) [skip ci]"
+          git push
