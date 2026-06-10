@@ -94,34 +94,39 @@ Every metric is computed for `ALL` and **per `market`**, gated at n ≥ 200:
 
 Segments are **never pooled across language/source** for a promotion decision.
 
-## Validation & promotion gate
+## Validation & promotion gate (two stages, both run every invocation)
 
-A challenger is **promoted** (i.e., we'd build the confidence-gated override for
-that axis/segment) **only if all** of the following hold for that segment:
+**Stage 1 — screening.** Each cell's metric is a **3-seed ensemble** (averaging
+the val predictions removes the per-seed/platform MLP noise that flips a single
+run across the gate at the boundary) with a 1000-sample bootstrap 95% CI. A cell
+**screens** if its CI lower bound clears the gate — H1: ρ > **0.05**; H2:
+`dir_hit` > **0.53** *and* > majority. One-sided p-values `P(stat ≤ gate)` get
+**Benjamini–Hochberg FDR q=0.10** across the whole grid (2 hyps × 3 horizons ×
+feature sets × segments).
 
-1. **Min sample:** segment has ≥ **1,500** labeled events at the horizon.
-2. **Multi-fold walk-forward:** ≥ **3 expanding-window folds**, each lookahead-safe.
-3. **Effect + CI:**
-   - H1: bootstrap-CI **lower bound** of ρ > **0.05** in **every** fold.
-   - H2: bootstrap-CI **lower bound** of `dir_hit` > **0.53** (and > majority
-     baseline) in **every** fold.
-4. **Multiple-testing:** the grid is (2 hypotheses × ≤3 horizons × ≤3 feature sets
-   × segments). Apply **Benjamini–Hochberg FDR at q=0.10** across the whole grid;
-   the promoted cell must survive.
-5. **Direction of darkness only:** even if H1 promotes, darkness still combines
-   with direction from the issue `signal` — H1 never sets green/red.
+**Stage 2 — walk-forward.** Any `(hyp, feat, seg)` that screens at ≥1 horizon is
+re-tested with **3 expanding-window, lookahead-safe folds** (train = everything
+before each val window), each **re-standardizing features and re-deriving the
+within-stock μ/σ on its own train** (no leakage). It **survives** a horizon if
+the fold CI-low clears the gate in **every** fold.
 
-The single-split + val-bootstrap reported each run is the **screening** metric
-(cheap, monthly). The multi-fold walk-forward in (2)–(4) is run **only when a
-segment first passes (1)** — it is the actual go/no-go, not the screening number.
+**PROMOTE** a `(hyp, feat, seg)` iff it screens **AND** survives FDR **AND**
+survives walk-forward — at **≥2 horizons** (a 1d-only effect that fades by 3/5d
+is *not* promotable). Even when H1 promotes it only sets **darkness**; direction
+always comes from the issue `signal` (H1 never sets green/red). Anything short of
+this → **NO-GO**, production stays GPT-only.
 
-If no cell passes → **NO-GO**, production stays GPT-only. Re-evaluate as data grows.
+Small segments are reported but won't promote: with few events the bootstrap CI
+is too wide to clear the gate, so the ~1,500-event floor is enforced
+*implicitly* by the CI rather than as a hard cutoff. Re-evaluate as data grows.
 
 ## Output / log
 
-`python ml/shadow_eval.py` prints the screening table and **appends one JSON
-record** to `ml/shadow_log.jsonl` (timestamp, data snapshot counts, every metric
-+ CI + n). **Automation:** `.github/workflows/shadow-eval.yml` runs the whole
+`python ml/shadow_eval.py` prints the screening + walk-forward tables and
+**appends one JSON record** to `ml/shadow_log.jsonl` (timestamp, data snapshot
+counts, config/gates, per-cell `screening` metric+CI+p+fdr, `walkforward` fold
+CI-lows + survive, `promoted` list, and the `verdict`). **Automation:**
+`.github/workflows/shadow-eval.yml` runs the whole
 pipeline (pull → classify → eval) **monthly on GitHub Actions** — cloud, so it is
 independent of any Codespace being stopped/deleted — and commits the new log line
 back. (Data accrual itself never depends on Codespace either: it's the Vercel
